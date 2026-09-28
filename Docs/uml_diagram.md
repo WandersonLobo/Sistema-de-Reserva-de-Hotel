@@ -33,9 +33,9 @@ Este documento contém o modelo conceitual, diagramas estáticos de classes indi
 * **[2. Bloco Temático: Services (`src/services/`)](#2-bloco-temático-services-srcservices)**
   * **[2.1. Orquestração Central (`src/services/hotel.py`)](#21-orquestração-central-srcserviceshotelpy)**
     * [Classe `Hotel`](#classe-hotel)
-  * **[2.2. Cálculo de Tarifas (`src/services/tarifas.py`)](#22-cálculo-de-tarifas-srcservicestarifaspy)**
+  * **[2.2. Cálculo de Tarifas (`src/services/rates.py`)](#22-cálculo-de-tarifas-srcservicesratespy)**
     * [Classe `CalculadoraTarifa`](#classe-calculadoratarifa)
-  * **[2.3. Relatórios e Indicadores (`src/services/relatorios.py`)](#23-relatórios-e-indicadores-srcservicesrelatoriospy)**
+  * **[2.3. Relatórios e Indicadores (`src/services/reports.py`)](#23-relatórios-e-indicadores-srcservicesreportspy)**
     * [Classe `ServicoRelatorios`](#classe-servicorelatorios)
 * **[3. Diagramas Dinâmicos (UML Comportamental)](#3-diagramas-dinâmicos-uml-comportamental)**
   * [3.1. Máquina de Estados da Reserva (`Reserva`)](#31-máquina-de-estados-da-reserva-reserva)
