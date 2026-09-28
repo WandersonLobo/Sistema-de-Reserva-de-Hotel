@@ -786,7 +786,7 @@ classDiagram
 
 ---
 
-### 2.2. Cálculo de Tarifas (`src/services/tarifas.py`)
+### 2.2. Cálculo de Tarifas (`src/services/rates.py`)
 
 #### Classe `CalculadoraTarifa`
 Serviço utilitário composto por funções puras que calculam o valor das diárias aplicando multiplicadores de alta temporada e fins de semana parametrizados no `settings.json`.
@@ -817,7 +817,7 @@ classDiagram
 
 ---
 
-### 2.3. Relatórios e Indicadores (`src/services/relatorios.py`)
+### 2.3. Relatórios e Indicadores (`src/services/reports.py`)
 
 #### Classe `ServicoRelatorios`
 Serviço especializado na extração de métricas gerenciais de desempenho hoteleiro: Taxa de Ocupacao, ADR (*Average Daily Rate*), RevPAR (*Revenue per Available Room*), estatísticas de cancelamento e receita por categoria de quarto.
