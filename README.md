@@ -35,7 +35,7 @@ Automatizar o fluxo operacional e financeiro hoteleiro, garantindo a integridade
 
 ### ⚙️ Objetivos Técnicos de POO
 * **Herança Simples e Polimorfismo:** Especialização nas hierarquias `Pessoa` $\rightarrow$ `Hospede` e `Quarto` $\rightarrow$ `QuartoSimples`, `QuartoDuplo` e `QuartoLuxo`, com cálculo polimórfico de tarifas diárias.
-* **Herança Múltipla via Mixins:** Reuso transversal de comportamentos com `AuditoriaMixin` (rastreio temporal de criação e atualização) e `SerializavelMixin` (conversão padronizada para dicionários e JSON).
+* **Herança Múltipla via Mixins:** Reuso transversal de comportamentos com `Auditoria(Mixin)` (rastreio temporal de criação e atualização) e `Serializavel(Mixin)` (conversão padronizada para dicionários e JSON).
 * **Composição e Agregação:** Relacionamento estrutural em `Reserva`, agregando `Hospede` e `Quarto` e compondo listas de objetos `Pagamento` e `Adicional`.
 * **Encapsulamento e Tratamento de Erros:** Proteção de atributos e validação de invariantes com `@property`, aliada a uma hierarquia de exceções customizadas de domínio (`HotelException` e subclasses).
 * **Métodos Especiais (*Dunder Methods*):** Implementação de `__str__` e `__repr__` (representação textual), `__lt__` (ordenação natural de quartos por categoria e número), `__len__` (quantidade de diárias da reserva) e `__eq__` (detecção de conflito de quarto e período).
@@ -109,9 +109,9 @@ classDiagram
 
 > 📄 **Documentação Completa dos Diagramas:**  
 > Para visualizar os **diagramas individuais detalhados de cada classe** (com todos os atributos, `@property`, tipagens e métodos especiais), além das **Máquinas de Estado** e **Diagramas de Sequência**, acesse a especificação completa no repositório:  
-> 👉 **[Especificação UML Completa (`docs/uml_diagram.md`)](./docs/uml_diagram.md)**  
-> 👉 **[Regras de Negócio e Políticas (`docs/business_rules.md`)](./docs/business_rules.md)**  
-> 👉 **[Guia da API para App Inventor (`docs/api_mobile_guide.md`)](./docs/api_mobile_guide.md)**
+> 👉 **[Especificação UML Completa (`docs/uml_diagram.md`)](./Docs/uml_diagram.md)**  
+> 👉 **[Regras de Negócio e Políticas (`Docs/business_rules.md`)](./Docs/busines_rules.md)**  
+> 👉 **[Guia da API para App Inventor (`Docs/mobile_api_guide.md`)](./Docs/mobile_api_guide.md)**
 
 ---
 

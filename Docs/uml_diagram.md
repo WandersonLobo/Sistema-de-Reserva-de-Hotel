@@ -1,6 +1,7 @@
 # Especificação UML — Sistema de Reserva de Hotel
 
 Este documento contém o modelo conceitual, diagramas estáticos de classes individuais separados por blocos temáticos (`Models` e `Services`), diagramas dinâmicos de transição de estados e o detalhamento técnico do sistema de reservas.
+**Observação:** Os mixins `Serializavel` e `Auditoria` são referenciados neste documento também como `SerializavelMixin` e `AuditoriaMixin`, respectivamente.
 
 ---
 
@@ -16,15 +17,15 @@ Este documento contém o modelo conceitual, diagramas estáticos de classes indi
   * **[1.2. Comportamentos Transversais (`src/models/mixins.py`)](#12-comportamentos-transversais-srcmodelsmixinspy)**
     * [Classe `AuditoriaMixin`](#classe-auditoriamixin)
     * [Classe `SerializavelMixin`](#classe-serializavelmixin)
-  * **[1.3. Hierarquia de Pessoas (`src/models/pessoa.py`)](#13-hierarquia-de-pessoas-srcmodelspessoapy)**
+  * **[1.3. Hierarquia de Pessoas (`src/models/person.py`)](#13-hierarquia-de-pessoas-srcmodelspessoapy)**
     * [Classe `Pessoa` (Abstrata)](#classe-pessoa)
     * [Classe `Hospede`](#classe-hospede)
-  * **[1.4. Hierarquia de Quartos (`src/models/quarto.py`)](#14-hierarquia-de-quartos-srcmodelsquartopy)**
+  * **[1.4. Hierarquia de Quartos (`src/models/room.py`)](#14-hierarquia-de-quartos-srcmodelsquartopy)**
     * [Classe `Quarto` (Abstrata)](#classe-quarto)
     * [Classe `QuartoSimples`](#classe-quartosimples)
     * [Classe `QuartoDuplo`](#classe-quartoduplo)
     * [Classe `QuartoLuxo`](#classe-quartoluxo)
-  * **[1.5. Reservas, Pagamentos e Adicionais (`src/models/reserva.py`)](#15-reservas-pagamentos-e-adicionais-srcmodelsreservapy)**
+  * **[1.5. Reservas, Pagamentos e Adicionais (`src/models/reservation.py`)](#15-reservas-pagamentos-e-adicionais-srcmodelsreservapy)**
     * [Classe `Reserva`](#classe-reserva)
     * [Classe `Pagamento`](#classe-pagamento)
     * [Classe `Adicional`](#classe-adicional)
@@ -167,7 +168,7 @@ classDiagram
 
 ### 1.2. Comportamentos Transversais (`src/models/mixins.py`)
 
-#### Classe `AuditoriaMixin`
+#### Classe `Auditoria`(Mixin)
 Fornece rastreabilidade temporal de criação e última modificação para entidades críticas via herança múltipla.
 
 ```mermaid
@@ -193,13 +194,13 @@ classDiagram
     AuditoriaMixin <|-- Reserva : Herança Múltipla (audita)
 ```
 
-#### Classe `SerializavelMixin`
+#### Classe `Serializavel`(Mixin)
 Provê métodos padronizados de conversão de objetos de domínio para dicionários e JSON, facilitando a integração com persistência e API.
 
 ```mermaid
 classDiagram
     %% Definição das Classes
-    class SerializavelMixin {
+    class Serializavel {
         +to_dict() dict
         +to_json() str
         +from_dict(dados: dict)$ Any
