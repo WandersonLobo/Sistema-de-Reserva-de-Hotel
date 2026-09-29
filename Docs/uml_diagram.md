@@ -1,6 +1,7 @@
 # Especificação UML — Sistema de Reserva de Hotel
 
 Este documento contém o modelo conceitual, diagramas estáticos de classes individuais separados por blocos temáticos (`Models` e `Services`), diagramas dinâmicos de transição de estados e o detalhamento técnico do sistema de reservas.
+**Observação:** Os mixins `Serializavel` e `Auditoria` são referenciados neste documento também como `SerializavelMixin` e `AuditoriaMixin`, respectivamente.
 
 ---
 
@@ -16,15 +17,15 @@ Este documento contém o modelo conceitual, diagramas estáticos de classes indi
   * **[1.2. Comportamentos Transversais (`src/models/mixins.py`)](#12-comportamentos-transversais-srcmodelsmixinspy)**
     * [Classe `AuditoriaMixin`](#classe-auditoriamixin)
     * [Classe `SerializavelMixin`](#classe-serializavelmixin)
-  * **[1.3. Hierarquia de Pessoas (`src/models/pessoa.py`)](#13-hierarquia-de-pessoas-srcmodelspessoapy)**
+  * **[1.3. Hierarquia de Pessoas (`src/models/person.py`)](#13-hierarquia-de-pessoas-srcmodelspessoapy)**
     * [Classe `Pessoa` (Abstrata)](#classe-pessoa)
     * [Classe `Hospede`](#classe-hospede)
-  * **[1.4. Hierarquia de Quartos (`src/models/quarto.py`)](#14-hierarquia-de-quartos-srcmodelsquartopy)**
+  * **[1.4. Hierarquia de Quartos (`src/models/room.py`)](#14-hierarquia-de-quartos-srcmodelsquartopy)**
     * [Classe `Quarto` (Abstrata)](#classe-quarto)
     * [Classe `QuartoSimples`](#classe-quartosimples)
     * [Classe `QuartoDuplo`](#classe-quartoduplo)
     * [Classe `QuartoLuxo`](#classe-quartoluxo)
-  * **[1.5. Reservas, Pagamentos e Adicionais (`src/models/reserva.py`)](#15-reservas-pagamentos-e-adicionais-srcmodelsreservapy)**
+  * **[1.5. Reservas, Pagamentos e Adicionais (`src/models/reservation.py`)](#15-reservas-pagamentos-e-adicionais-srcmodelsreservapy)**
     * [Classe `Reserva`](#classe-reserva)
     * [Classe `Pagamento`](#classe-pagamento)
     * [Classe `Adicional`](#classe-adicional)
@@ -33,9 +34,9 @@ Este documento contém o modelo conceitual, diagramas estáticos de classes indi
 * **[2. Bloco Temático: Services (`src/services/`)](#2-bloco-temático-services-srcservices)**
   * **[2.1. Orquestração Central (`src/services/hotel.py`)](#21-orquestração-central-srcserviceshotelpy)**
     * [Classe `Hotel`](#classe-hotel)
-  * **[2.2. Cálculo de Tarifas (`src/services/tarifas.py`)](#22-cálculo-de-tarifas-srcservicestarifaspy)**
+  * **[2.2. Cálculo de Tarifas (`src/services/rates.py`)](#22-cálculo-de-tarifas-srcservicesratespy)**
     * [Classe `CalculadoraTarifa`](#classe-calculadoratarifa)
-  * **[2.3. Relatórios e Indicadores (`src/services/relatorios.py`)](#23-relatórios-e-indicadores-srcservicesrelatoriospy)**
+  * **[2.3. Relatórios e Indicadores (`src/services/reports.py`)](#23-relatórios-e-indicadores-srcservicesreportspy)**
     * [Classe `ServicoRelatorios`](#classe-servicorelatorios)
 * **[3. Diagramas Dinâmicos (UML Comportamental)](#3-diagramas-dinâmicos-uml-comportamental)**
   * [3.1. Máquina de Estados da Reserva (`Reserva`)](#31-máquina-de-estados-da-reserva-reserva)
@@ -167,7 +168,7 @@ classDiagram
 
 ### 1.2. Comportamentos Transversais (`src/models/mixins.py`)
 
-#### Classe `AuditoriaMixin`
+#### Classe `Auditoria`(Mixin)
 Fornece rastreabilidade temporal de criação e última modificação para entidades críticas via herança múltipla.
 
 ```mermaid
@@ -193,13 +194,13 @@ classDiagram
     AuditoriaMixin <|-- Reserva : Herança Múltipla (audita)
 ```
 
-#### Classe `SerializavelMixin`
+#### Classe `Serializavel`(Mixin)
 Provê métodos padronizados de conversão de objetos de domínio para dicionários e JSON, facilitando a integração com persistência e API.
 
 ```mermaid
 classDiagram
     %% Definição das Classes
-    class SerializavelMixin {
+    class Serializavel {
         +to_dict() dict
         +to_json() str
         +from_dict(dados: dict)$ Any
@@ -786,7 +787,7 @@ classDiagram
 
 ---
 
-### 2.2. Cálculo de Tarifas (`src/services/tarifas.py`)
+### 2.2. Cálculo de Tarifas (`src/services/rates.py`)
 
 #### Classe `CalculadoraTarifa`
 Serviço utilitário composto por funções puras que calculam o valor das diárias aplicando multiplicadores de alta temporada e fins de semana parametrizados no `settings.json`.
@@ -817,7 +818,7 @@ classDiagram
 
 ---
 
-### 2.3. Relatórios e Indicadores (`src/services/relatorios.py`)
+### 2.3. Relatórios e Indicadores (`src/services/reports.py`)
 
 #### Classe `ServicoRelatorios`
 Serviço especializado na extração de métricas gerenciais de desempenho hoteleiro: Taxa de Ocupacao, ADR (*Average Daily Rate*), RevPAR (*Revenue per Available Room*), estatísticas de cancelamento e receita por categoria de quarto.
