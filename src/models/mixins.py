@@ -48,7 +48,7 @@ class Auditoria:
             datetime: Instante da última chamada a :meth:`registrar_alteracao`.
                 Inicialmente igual a :attr:`data_criacao`.
         """
-        return self.__data_atualizacao
+        return self._data_atualizacao
 
 # ----------------------------------------------------------------------- #
 # Métodos de comportamento                                                 #
@@ -67,7 +67,7 @@ class Auditoria:
             reserva.registrar_alteracao()
             print(reserva.data_atualizacao)  # novo datetime
         """
-        self.__data_atualizacao = datetime.now()
+        self._data_atualizacao = datetime.now()
 
 
 # =========================================================================== #
