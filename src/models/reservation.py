@@ -12,32 +12,19 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-try:
-    from .enums import OrigemReserva, StatusQuarto, StatusReserva
-    from .exceptions import (
+
+from .enums import OrigemReserva, StatusQuarto, StatusReserva
+from .exceptions import (
         CapacidadeExcedidaException,
         DadosInvalidosException,
         PagamentoInsuficienteException,
         QuartoIndisponivelException,
         TransicaoEstadoInvalidaException,
     )
-    from .mixins import Auditoria, Serializavel
-    from .payment import Adicional, Pagamento
-    from .person import Hospede
-    from .room import Quarto
-except (ImportError, ValueError):
-    from enums import OrigemReserva, StatusQuarto, StatusReserva  # type: ignore
-    from exceptions import (  # type: ignore
-        CapacidadeExcedidaException,
-        DadosInvalidosException,
-        PagamentoInsuficienteException,
-        QuartoIndisponivelException,
-        TransicaoEstadoInvalidaException,
-    )
-    from mixins import Auditoria, Serializavel  # type: ignore
-    from payment import Adicional, Pagamento  # type: ignore
-    from person import Hospede  # type: ignore
-    from room import Quarto  # type: ignore
+from .mixins import Auditoria, Serializavel
+from .payment import Adicional, Pagamento
+from .person import Hospede
+from .room import Quarto
 
 class Reserva(Auditoria, Serializavel):
     """Entidade central que representa uma reserva de acomodação no hotel.

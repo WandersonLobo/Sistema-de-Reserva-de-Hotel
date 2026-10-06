@@ -11,22 +11,14 @@ from abc import ABC, abstractmethod
 from datetime import date
 from typing import Any, Dict, Optional
 
-try:
-    from .enums import StatusQuarto, TipoQuarto
-    from .exceptions import (
+
+from .enums import StatusQuarto, TipoQuarto
+from .exceptions import (
         DadosInvalidosException,
         QuartoIndisponivelException,
         TransicaoEstadoInvalidaException,
     )
-    from .mixins import Serializavel
-except (ImportError, ValueError):
-    from enums import StatusQuarto, TipoQuarto  # type: ignore
-    from exceptions import (  # type: ignore
-        DadosInvalidosException,
-        QuartoIndisponivelException,
-        TransicaoEstadoInvalidaException,
-    )
-    from mixins import Serializavel  # type: ignore
+from .mixins import Serializavel
 
 class Quarto(Serializavel, ABC):
     """Classe base abstrata que representa uma acomodação genérica do hotel.
