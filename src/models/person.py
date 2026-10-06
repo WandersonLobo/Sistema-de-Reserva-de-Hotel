@@ -10,12 +10,8 @@ from abc import ABC
 import re
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-try:
-    from .exceptions import DadosInvalidosException
-    from .mixins import Serializavel
-except (ImportError, ValueError):
-    from exceptions import DadosInvalidosException  # type: ignore
-    from mixins import Serializavel  # type: ignore
+from .exceptions import DadosInvalidosException
+from .mixins import Serializavel
 
 if TYPE_CHECKING:
     from .reservation import Reserva

@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
-try:
-    from .enums import MetodoPagamento
-    from .exceptions import DadosInvalidosException
-    from .mixins import Serializavel
-except (ImportError, ValueError):
-    from enums import MetodoPagamento  # type: ignore
-    from exceptions import DadosInvalidosException  # type: ignore
-    from mixins import Serializavel  # type: ignore
+from .enums import MetodoPagamento
+from .exceptions import DadosInvalidosException
+from .mixins import Serializavel
+
+if TYPE_CHECKING:
+    from .reservation import Reserva
 
 
 class Pagamento(Serializavel):
