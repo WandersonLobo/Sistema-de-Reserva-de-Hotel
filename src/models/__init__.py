@@ -1,4 +1,3 @@
-"""Inicializador do pacote de modelos de domínio."""
 
 from .enums import MetodoPagamento, OrigemReserva, StatusReserva, StatusQuarto, TipoQuarto
 from .exceptions import (CapacidadeExcedidaException,

@@ -1,12 +1,5 @@
-"""Suíte de testes automatizados para as classes de domínio (Models).
-
-Cobre a instanciação de objetos, encapsulamento via @property, validação
-de invariantes com exceções customizadas, polimorfismo, mixins e métodos
-especiais (__len__, __str__, __repr__, __lt__, __eq__).
-"""
 
 # Utilizando re-export #
-
 from datetime import date, datetime, timedelta
 import pytest
 from src.models import (

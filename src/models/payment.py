@@ -1,4 +1,3 @@
-"""Módulo que define as entidades financeiras e de consumo extra da reserva."""
 
 from __future__ import annotations
 from datetime import datetime
@@ -18,12 +17,6 @@ class Pagamento(Serializavel):
     Cada instância registra uma quantia monetária quitada pelo hóspede em uma
     modalidade permitida (`DINHEIRO`, `CREDITO`, `DEBITO` ou `PIX`), abatendo o
     saldo devedor da reserva correspondente.
-
-    Attributes:
-        _id (int): Identificador único do registro de pagamento.
-        _valor (float): Quantia monetária paga na transação (> 0).
-        _metodo (MetodoPagamento): Modalidade utilizada (DINHEIRO, CREDITO, DEBITO, PIX).
-        _data_pagamento (datetime): Data e hora exatas em que o pagamento ocorreu.
     """
 
     def __init__(
@@ -33,21 +26,7 @@ class Pagamento(Serializavel):
         metodo: MetodoPagamento = MetodoPagamento.DINHEIRO,
         data_pagamento: Optional[datetime] = None,
     ) -> None:
-        """Inicializa um novo registro de pagamento.
-
-        Permite a criação vazia (`Pagamento()`) com valores padrão ou
-        parametrizada com validação das regras financeiras.
-
-        Args:
-            id_ (int, optional): Identificador único do pagamento. Padrão é 0.
-            valor (float, optional): Valor monetário pago (> 0 se especificado). Padrão é 0.0.
-            metodo (MetodoPagamento, optional): Modalidade de pagamento. Padrão é DINHEIRO.
-            data_pagamento (Optional[datetime], optional): Momento da transação.
-                Se omitido, assume a data e hora atuais.
-
-        Raises:
-            DadosInvalidosException: Se `valor < 0` ou método inválido.
-        """
+    
         super().__init__()
         self._id: int = 0
         self._valor: float = 0.0
@@ -69,11 +48,7 @@ class Pagamento(Serializavel):
 
     @classmethod
     def vazio(cls) -> Pagamento:
-        """Construtor de fábrica que retorna um pagamento com valores padrão.
-
-        Returns:
-            Pagamento: Nova instância vazia de Pagamento.
-        """
+        """Construtor de fábrica que retorna um pagamento com valores padrão."""
         return cls()
 
 # ----------------------------------------------------------------------- #
@@ -82,46 +57,25 @@ class Pagamento(Serializavel):
 
     @property
     def id(self) -> int:
-        """Retorna o identificador numérico único do pagamento.
-
-        Returns:
-            int: ID do pagamento.
-        """
+        """Retorna o identificador numérico único do pagamento."""
         return self._id
 
     @id.setter
     def id(self, valor: int) -> None:
-        """Define o identificador numérico único do pagamento.
+        """Define o identificador numérico único do pagamento."""
 
-        Args:
-            valor (int): Novo identificador (deve ser >= 0).
-
-        Raises:
-            DadosInvalidosException: Se o valor for negativo ou não for inteiro.
-        """
         if not isinstance(valor, int) or valor < 0:
             raise DadosInvalidosException("O ID do pagamento deve ser um número inteiro maior ou igual a zero.")
         self._id = valor
 
     @property
     def valor(self) -> float:
-        """Retorna o valor monetário registrado no pagamento.
-
-        Returns:
-            float: Quantia monetária da transação.
-        """
+        """Retorna o valor monetário registrado no pagamento."""
         return self._valor
 
     @valor.setter
     def valor(self, valor: float) -> None:
-        """Define e valida o valor monetário do pagamento.
-
-        Args:
-            valor (float): Quantia paga (deve ser estritamente positiva).
-
-        Raises:
-            DadosInvalidosException: Se o valor for menor ou igual a zero.
-        """
+        """Define e valida o valor monetário do pagamento."""
         try:
             val_float = float(valor)
         except (ValueError, TypeError):
@@ -133,23 +87,12 @@ class Pagamento(Serializavel):
 
     @property
     def metodo(self) -> MetodoPagamento:
-        """Retorna a modalidade de pagamento utilizada.
-
-        Returns:
-            MetodoPagamento: Enumeração correspondente ao meio de pagamento.
-        """
+        """Retorna a modalidade de pagamento utilizada."""
         return self._metodo
 
     @metodo.setter
     def metodo(self, valor: Any) -> None:
-        """Define e valida o meio de pagamento utilizado.
-
-        Args:
-            valor (Any): Membro de `MetodoPagamento` ou string compatível.
-
-        Raises:
-            DadosInvalidosException: Se o valor não for reconhecido como MetodoPagamento.
-        """
+        """Define e valida o meio de pagamento utilizado."""
         if isinstance(valor, MetodoPagamento):
             self._metodo = valor
         elif isinstance(valor, str):
@@ -164,23 +107,12 @@ class Pagamento(Serializavel):
 
     @property
     def data_pagamento(self) -> datetime:
-        """Retorna a data e hora em que a transação foi efetuada.
-
-        Returns:
-            datetime: Carimbo de tempo do pagamento.
-        """
+        """Retorna a data e hora em que a transação foi efetuada."""
         return self._data_pagamento
 
     @data_pagamento.setter
     def data_pagamento(self, valor: datetime) -> None:
-        """Define a data e hora do pagamento.
-
-        Args:
-            valor (datetime): Novo carimbo de tempo da transação.
-
-        Raises:
-            DadosInvalidosException: Se o valor não for uma instância de datetime.
-        """
+        """Define a data e hora do pagamento."""
         if not isinstance(valor, datetime):
             raise DadosInvalidosException("A data de pagamento deve ser um objeto datetime válido.")
         self._data_pagamento = valor
@@ -191,17 +123,7 @@ class Pagamento(Serializavel):
 
     @classmethod
     def from_dict(cls, dados: Dict[str, Any]) -> Pagamento:
-        """Reconstrói uma instância de `Pagamento` a partir de um dicionário.
-
-        Args:
-            dados (Dict[str, Any]): Dicionário com chaves `id`, `valor`, `metodo` e `data_pagamento`.
-
-        Returns:
-            Pagamento: Nova instância reconstruída com os tipos corretos.
-
-        Raises:
-            DadosInvalidosException: Se os dados forem inconsistentes ou faltarem chaves obrigatórias.
-        """
+        """Reconstrói uma instância de `Pagamento` a partir de um dicionário."""
         if not isinstance(dados, dict):
             raise DadosInvalidosException("Os dados de entrada para Pagamento devem ser um dicionário.")
 
@@ -227,20 +149,12 @@ class Pagamento(Serializavel):
         )
 
     def __str__(self) -> str:
-        """Retorna uma representação legível do pagamento.
-
-        Returns:
-            str: Resumo com ID, valor formatado, método e data.
-        """
+        """Retorna uma representação legível do pagamento."""
         data_fmt = self._data_pagamento.strftime("%d/%m/%Y %H:%M")
         return f"Pagamento #{self._id}: R$ {self._valor:.2f} via {self._metodo.value} em {data_fmt}"
 
     def __repr__(self) -> str:
-        """Retorna a representação técnica oficial para depuração.
-
-        Returns:
-            str: Representação técnica do objeto Pagamento.
-        """
+        """Retorna a representação técnica oficial para depuração."""
         return (
             f"Pagamento(id={self._id!r}, valor={self._valor!r}, "
             f"metodo={self._metodo!r}, data_pagamento={self._data_pagamento.isoformat()!r})"
@@ -254,12 +168,6 @@ class Adicional(Serializavel):
     Utilizada para registrar consumos durante a estadia (ex.: frigobar,
     estacionamento, refeições, lavanderia), compondo o montante global devido
     no momento do encerramento da conta (check-out).
-    
-    Attributes:
-        _id (int): Identificador único do consumo adicional.
-        _descricao (str): Nome ou descrição do produto/serviço consumido.
-        _preco_unitario (float): Valor unitário do item (> 0).
-        _quantidade (int): Quantidade consumida do item (>= 1).
     """
 
     def __init__(
@@ -269,21 +177,7 @@ class Adicional(Serializavel):
         preco_unitario: float = 0.0,
         quantidade: int = 1,
     ) -> None:
-        """Inicializa um novo lançamento de consumo adicional.
-
-        Permite a criação vazia (`Adicional()`) com valores padrão ou
-        parametrizada com validação dos dados de produto e quantidade.
-
-        Args:
-            id_ (int, optional): Identificador único do adicional. Padrão é 0.
-            descricao (str, optional): Nome ou descrição do produto/serviço. Padrão é "".
-            preco_unitario (float, optional): Preço unitário (> 0 se especificado). Padrão é 0.0.
-            quantidade (int, optional): Quantidade consumida (>= 1). Padrão é 1.
-
-        Raises:
-            DadosInvalidosException: Se a descrição for vazia, `preco_unitario < 0`
-                ou `quantidade < 1`.
-        """
+       
         super().__init__()
         self._id: int = 0
         self._descricao: str = ""
@@ -304,11 +198,7 @@ class Adicional(Serializavel):
 
     @classmethod
     def vazio(cls) -> Adicional:
-        """Construtor de fábrica que retorna um adicional com atributos padrão vazios.
-
-        Returns:
-            Adicional: Nova instância vazia de Adicional.
-        """
+        """Construtor de fábrica que retorna um adicional com atributos padrão vazios."""
         return cls()
 
 # ----------------------------------------------------------------------- #
@@ -317,69 +207,36 @@ class Adicional(Serializavel):
 
     @property
     def id(self) -> int:
-        """Retorna o identificador único do consumo adicional.
-
-        Returns:
-            int: ID do adicional.
-        """
+        """Retorna o identificador único do consumo adicional."""
         return self._id
 
     @id.setter
     def id(self, valor: int) -> None:
-        """Define o identificador numérico único do adicional.
-
-        Args:
-            valor (int): Novo identificador (deve ser >= 0).
-
-        Raises:
-            DadosInvalidosException: Se o valor for negativo ou não for inteiro.
-        """
+        """Define o identificador numérico único do adicional."""
         if not isinstance(valor, int) or valor < 0:
             raise DadosInvalidosException("O ID do adicional deve ser um número inteiro maior ou igual a zero.")
         self._id = valor
 
     @property
     def descricao(self) -> str:
-        """Retorna a descrição do produto ou serviço adicional.
-
-        Returns:
-            str: Descrição do item consumido.
-        """
+        """Retorna a descrição do produto ou serviço adicional."""
         return self._descricao
 
     @descricao.setter
     def descricao(self, valor: str) -> None:
-        """Define e valida a descrição do item adicional.
-
-        Args:
-            valor (str): Descrição do produto ou serviço (não vazia).
-
-        Raises:
-            DadosInvalidosException: Se o valor for vazio ou não for string.
-        """
+        """Define e valida a descrição do item adicional."""
         if not isinstance(valor, str) or not valor.strip():
             raise DadosInvalidosException("A descrição do adicional não pode ser vazia.")
         self._descricao = valor.strip()
 
     @property
     def preco_unitario(self) -> float:
-        """Retorna o preço unitário do item consumido.
-
-        Returns:
-            float: Valor de uma unidade.
-        """
+        """Retorna o preço unitário do item consumido."""
         return self._preco_unitario
 
     @preco_unitario.setter
     def preco_unitario(self, valor: float) -> None:
-        """Define e valida o preço unitário do item.
-
-        Args:
-            valor (float): Preço unitário (deve ser estritamente positivo).
-
-        Raises:
-            DadosInvalidosException: Se o preço for menor ou igual a zero.
-        """
+        """Define e valida o preço unitário do item."""
         try:
             val_float = float(valor)
         except (ValueError, TypeError):
@@ -391,34 +248,19 @@ class Adicional(Serializavel):
 
     @property
     def quantidade(self) -> int:
-        """Retorna o número de unidades consumidas do item.
-
-        Returns:
-            int: Quantidade consumida.
-        """
+        """Retorna o número de unidades consumidas do item."""
         return self._quantidade
 
     @quantidade.setter
     def quantidade(self, valor: int) -> None:
-        """Define e valida a quantidade consumida do item.
-
-        Args:
-            valor (int): Quantidade consumida (deve ser maior ou igual a 1).
-
-        Raises:
-            DadosInvalidosException: Se a quantidade for menor que 1.
-        """
+        """Define e valida a quantidade consumida do item."""
         if not isinstance(valor, int) or valor < 1:
             raise DadosInvalidosException(f"A quantidade de itens adicionais deve ser de no mínimo 1. Recebido: {valor}")
         self._quantidade = valor
 
     @property
     def total(self) -> float:
-        """Calcula e retorna o subtotal do item (`preco_unitario * quantidade`).
-
-        Returns:
-            float: Valor total acumulado deste item adicional.
-        """
+        """Calcula e retorna o subtotal do item (`preco_unitario * quantidade`)."""
         return round(self._preco_unitario * self._quantidade, 2)
 
 # ----------------------------------------------------------------------- #
@@ -427,17 +269,7 @@ class Adicional(Serializavel):
 
     @classmethod
     def from_dict(cls, dados: Dict[str, Any]) -> Adicional:
-        """Reconstrói uma instância de `Adicional` a partir de um dicionário.
-
-        Args:
-            dados (Dict[str, Any]): Dicionário com chaves `id`, `descricao`, `preco_unitario` e `quantidade`.
-
-        Returns:
-            Adicional: Objeto reconstruído com os dados fornecidos.
-
-        Raises:
-            DadosInvalidosException: Se os dados forem inconsistentes.
-        """
+        """Reconstrói uma instância de `Adicional` a partir de um dicionário."""
         if not isinstance(dados, dict):
             raise DadosInvalidosException("Os dados de entrada para Adicional devem ser um dicionário.")
         return cls(
@@ -448,22 +280,14 @@ class Adicional(Serializavel):
         )
 
     def __str__(self) -> str:
-        """Retorna uma representação textual amigável do item adicional.
-
-        Returns:
-            str: Resumo com descrição, quantidade, preço unitário e total.
-        """
+        """Retorna uma representação textual amigável do item adicional."""
         return (
             f"Adicional #{self._id}: {self._descricao} - {self._quantidade}x "
             f"R$ {self._preco_unitario:.2f} (Total: R$ {self.total:.2f})"
         )
 
     def __repr__(self) -> str:
-        """Retorna a representação técnica oficial para depuração.
-
-        Returns:
-            str: Representação técnica do objeto Adicional.
-        """
+        """Retorna a representação técnica oficial para depuração."""
         return (
             f"Adicional(id={self._id!r}, descricao={self._descricao!r}, "
             f"preco_unitario={self._preco_unitario!r}, quantidade={self._quantidade!r})"
