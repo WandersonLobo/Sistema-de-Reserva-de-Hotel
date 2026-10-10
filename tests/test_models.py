@@ -381,3 +381,20 @@ def test_serializacao_quarto_e_reserva(hospede_padrao: Hospede, quarto_luxo: Qua
     assert len(reserva_recriada) == 5
     assert reserva_recriada.quarto is not None
     assert reserva_recriada.quarto.numero == 201
+
+
+def test_serializacao_reserva_com_historico_do_hospede_nao_recursa(hospede_padrao: Hospede, quarto_luxo: QuartoLuxo) -> None:
+    """Serializa o relacionamento Reserva-Hospede sem expandir o ciclo."""
+    reserva = Reserva(
+        id_=7,
+        hospede=hospede_padrao,
+        quarto=quarto_luxo,
+        data_entrada=date(2026, 12, 20),
+        data_saida=date(2026, 12, 25),
+    )
+    hospede_padrao.vincular_reserva(reserva)
+
+    dados = reserva.to_dict()
+
+    assert dados["hospede"]["id"] == hospede_padrao.id
+    assert dados["hospede"]["historico_reservas"] == [{"id": reserva.id}]

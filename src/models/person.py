@@ -182,6 +182,21 @@ class Hospede(Pessoa):
     # Serialização e Métodos Especiais                                        #
     # ----------------------------------------------------------------------- #
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Converte o hóspede em dicionário sem expandir reservas recursivamente."""
+        dados = {
+            "id": self._id,
+            "nome": self._nome,
+            "documento": self._documento,
+            "email": self._email,
+            "telefone": self._telefone,
+            "preferencias": self._preferencias,
+        }
+        dados["historico_reservas"] = [
+            {"id": reserva.id} for reserva in self._historico_reservas
+        ]
+        return dados
+
     @classmethod
     def from_dict(cls, dados: Dict[str, Any]) -> Hospede:
         """Reconstrói uma instância de Hospede a partir de um dicionário."""
