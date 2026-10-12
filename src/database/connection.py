@@ -63,6 +63,15 @@ def inicializar_banco(caminho: Union[Path, str] = DB_PATH) -> None:
                         CHECK (taxa_servico_adicional >= 0)
                 );
 
+                CREATE TABLE IF NOT EXISTS temporadas (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nome TEXT NOT NULL,
+                    data_inicio TEXT NOT NULL,
+                    data_fim TEXT NOT NULL,
+                    multiplicador REAL NOT NULL CHECK (multiplicador > 0),
+                    CHECK (data_inicio <= data_fim)
+                );
+
                 CREATE TABLE IF NOT EXISTS reservas (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     hospede_id INTEGER NOT NULL,
