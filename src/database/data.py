@@ -9,9 +9,21 @@ from src.models.person import Hospede
 from src.models.reservation import Reserva
 from src.models.room import Quarto
 
+# Função auxiliar para transformar uma linha do banco em um objeto Quarto
+def _quarto_da_linha(linha) -> Quarto:
+    return Quarto.from_dict(dict(linha)) # O from_dict é um método da classe Quarto que cria um objeto a partir de um dicionário
+
+
 def listar_quartos() -> list[Quarto]:
     """Retorna todos os quartos cadastrados."""
-    ...
+    conexao = obter_conexao()
+    try: 
+        linhas = conexao.execute(
+            "SELECT * FROM quartos ORDER BY numero"
+        ).fetchall()
+        return [_quarto_da_linha(linha) for linha in linhas] # Chama a função auxiliar (_quarto_da_linha) e transforma cada linha em um objeto Quarto
+    finally:
+        conexao.close()
 
 
 def buscar_quarto(numero: int) -> Optional[Quarto]:
