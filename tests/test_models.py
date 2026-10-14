@@ -346,6 +346,31 @@ def test_reserva_fluxo_checkout_e_bloqueio_saldo_devedor(hospede_padrao: Hospede
     assert quarto_simples.status == StatusQuarto.DISPONIVEL
 
 
+def test_checkout_nao_duplica_multa_quando_saldo_e_insuficiente(
+    hospede_padrao: Hospede, quarto_simples: QuartoSimples
+) -> None:
+    """Garante que tentativas bloqueadas não persistam a multa de atraso."""
+    reserva = Reserva(id_=1, hospede=hospede_padrao, quarto=quarto_simples, valor_total_diarias=200.0)
+    reserva.confirmar()
+    reserva.realizar_checkin(horario=datetime.now())
+    reserva.adicionar_pagamento(Pagamento(valor=200.0, metodo=MetodoPagamento.DEBITO))
+
+    with pytest.raises(PagamentoInsuficienteException):
+        reserva.realizar_checkout(horario=datetime.now(), taxa_multa_atraso=50.0)
+    with pytest.raises(PagamentoInsuficienteException):
+        reserva.realizar_checkout(horario=datetime.now(), taxa_multa_atraso=50.0)
+
+    assert reserva.total_adicionais == 0.0
+    assert reserva.status == StatusReserva.CHECKIN
+
+    reserva.adicionar_pagamento(Pagamento(valor=50.0, metodo=MetodoPagamento.DEBITO))
+    total_encerrado = reserva.realizar_checkout(horario=datetime.now(), taxa_multa_atraso=50.0)
+
+    assert total_encerrado == 250.0
+    assert reserva.total_adicionais == 50.0
+    assert reserva.status == StatusReserva.CHECKOUT
+
+
 # =========================================================================== #
 # 5. Testes de Serialização (Mixin Serializavel)                              #
 # =========================================================================== #

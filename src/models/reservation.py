@@ -335,6 +335,16 @@ class Reserva(Auditoria, Serializavel):
                 f"Check-out permitido apenas para reservas em CHECKIN. Status atual: '{self._status.value}'."
             )
 
+        multa_aplicavel = max(0.0, taxa_multa_atraso)
+        total_devido_com_multa = self.valor_total_devido + multa_aplicavel
+        saldo_com_multa = max(0.0, total_devido_com_multa - self.total_pago)
+        if saldo_com_multa > 0.0:
+            raise PagamentoInsuficienteException(
+                saldo_devedor=saldo_com_multa,
+                total_devido=total_devido_com_multa,
+                total_pago=self.total_pago,
+            )
+
         if taxa_multa_atraso > 0.0:
             item_multa = Adicional(
                 id_=len(self._adicionais) + 1,
@@ -343,12 +353,6 @@ class Reserva(Auditoria, Serializavel):
                 quantidade=1,
             )
             self._adicionais.append(item_multa)
-
-        if self.saldo_devedor > 0.0:
-            raise PagamentoInsuficienteException(
-                f"Não é possível concluir o check-out: há um saldo devedor de R$ {self.saldo_devedor:.2f} pendente. "
-                f"(Total devido: R$ {self.valor_total_devido:.2f}, Total pago: R$ {self.total_pago:.2f})."
-            )
 
         self._checkout_real = horario
         self._status = StatusReserva.CHECKOUT

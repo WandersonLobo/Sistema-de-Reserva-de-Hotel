@@ -69,13 +69,21 @@ class TransicaoEstadoInvalidaException(HotelException):
         super().__init__(mensagem)
 
 class PagamentoInsuficienteException(HotelException):
-    """Exceção lançada quando há pendências financeiras no momento do check-out. """
+    """Exceção lançada quando há pendências financeiras no momento do check-out."""
 
     def __init__(
         self,
-        mensagem: str = "O valor pago é insuficiente para concluir a operação.",
-    ) -> None:
-       
+        saldo_devedor = None,
+        total_devido = None,
+        total_pago = None,
+    ):
+        if saldo_devedor is None or total_devido is None or total_pago is None:
+            mensagem = "O valor pago é insuficiente para concluir a operação."
+        else:
+            mensagem = (
+                f"Não é possível concluir o check-out: há um saldo devedor de R$ {saldo_devedor:.2f} pendente. "
+                f"(Total devido: R$ {total_devido:.2f}, Total pago: R$ {total_pago:.2f})."
+            )
         super().__init__(mensagem)
 
 
