@@ -1,12 +1,5 @@
-"""Suíte de testes automatizados para as classes de domínio (Models).
-
-Cobre a instanciação de objetos, encapsulamento via @property, validação
-de invariantes com exceções customizadas, polimorfismo, mixins e métodos
-especiais (__len__, __str__, __repr__, __lt__, __eq__).
-"""
 
 # Utilizando re-export #
-
 from datetime import date, datetime, timedelta
 import pytest
 from src.models import (
@@ -353,6 +346,31 @@ def test_reserva_fluxo_checkout_e_bloqueio_saldo_devedor(hospede_padrao: Hospede
     assert quarto_simples.status == StatusQuarto.DISPONIVEL
 
 
+def test_checkout_nao_duplica_multa_quando_saldo_e_insuficiente(
+    hospede_padrao: Hospede, quarto_simples: QuartoSimples
+) -> None:
+    """Garante que tentativas bloqueadas não persistam a multa de atraso."""
+    reserva = Reserva(id_=1, hospede=hospede_padrao, quarto=quarto_simples, valor_total_diarias=200.0)
+    reserva.confirmar()
+    reserva.realizar_checkin(horario=datetime.now())
+    reserva.adicionar_pagamento(Pagamento(valor=200.0, metodo=MetodoPagamento.DEBITO))
+
+    with pytest.raises(PagamentoInsuficienteException):
+        reserva.realizar_checkout(horario=datetime.now(), taxa_multa_atraso=50.0)
+    with pytest.raises(PagamentoInsuficienteException):
+        reserva.realizar_checkout(horario=datetime.now(), taxa_multa_atraso=50.0)
+
+    assert reserva.total_adicionais == 0.0
+    assert reserva.status == StatusReserva.CHECKIN
+
+    reserva.adicionar_pagamento(Pagamento(valor=50.0, metodo=MetodoPagamento.DEBITO))
+    total_encerrado = reserva.realizar_checkout(horario=datetime.now(), taxa_multa_atraso=50.0)
+
+    assert total_encerrado == 250.0
+    assert reserva.total_adicionais == 50.0
+    assert reserva.status == StatusReserva.CHECKOUT
+
+
 # =========================================================================== #
 # 5. Testes de Serialização (Mixin Serializavel)                              #
 # =========================================================================== #
@@ -388,3 +406,20 @@ def test_serializacao_quarto_e_reserva(hospede_padrao: Hospede, quarto_luxo: Qua
     assert len(reserva_recriada) == 5
     assert reserva_recriada.quarto is not None
     assert reserva_recriada.quarto.numero == 201
+
+
+def test_serializacao_reserva_com_historico_do_hospede_nao_recursa(hospede_padrao: Hospede, quarto_luxo: QuartoLuxo) -> None:
+    """Serializa o relacionamento Reserva-Hospede sem expandir o ciclo."""
+    reserva = Reserva(
+        id_=7,
+        hospede=hospede_padrao,
+        quarto=quarto_luxo,
+        data_entrada=date(2026, 12, 20),
+        data_saida=date(2026, 12, 25),
+    )
+    hospede_padrao.vincular_reserva(reserva)
+
+    dados = reserva.to_dict()
+
+    assert dados["hospede"]["id"] == hospede_padrao.id
+    assert dados["hospede"]["historico_reservas"] == [{"id": reserva.id}]

@@ -111,8 +111,6 @@ classDiagram
 > Para visualizar os **diagramas individuais detalhados de cada classe** (com todos os atributos, `@property`, tipagens e métodos especiais), além das **Máquinas de Estado** e **Diagramas de Sequência**, acesse a especificação completa no repositório:  
 > 👉 **[Especificação UML Completa (`docs/uml_diagram.md`)](./Docs/uml_diagram.md)**  
 > 👉 **[Regras de Negócio e Políticas (`Docs/busines_rules.md`)](./Docs/busines_rules.md)**  
-> 👉 **[Guia da API para App Inventor (`Docs/mobile_api_guide.md`)](./Docs/mobile_api_guide.md)**
-
 ---
 
 ## 4. Arquitetura e Estrutura de Diretórios
@@ -154,9 +152,8 @@ sistema-reservas-hotel/          <-- Raiz do repositório
 │   ├── database/                <-- 📁 CAMADA DE PERSISTÊNCIA E DADOS (SQLite)
 │   │   ├── __init__.py
 │   │   ├── connection.py        <-- Gestão de conexão com sqlite3 e inicialização do banco
-│   │   ├── schema.sql           <-- Script DDL (CREATE TABLE de quartos, hóspedes, reservas, etc.)
-│   │   ├── data.py              <-- Operações de CRUD (salvar/carregar entidades do domínio)
-│   │   └── seed.py              <-- Rotina de carga inicial (6-8 quartos e 3 temporadas)
+│   │   ├── hotel.db             <-- Banco de dados binário
+│   │   └── data.py              <-- Operações de CRUD (salvar/carregar entidades do domínio)
 │   │
 │   └── api/                     <-- 📁 CAMADA DE INTERFACE E COMUNICAÇÃO (FastAPI)
 │       ├── __init__.py
