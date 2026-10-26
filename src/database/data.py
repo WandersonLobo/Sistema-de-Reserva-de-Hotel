@@ -3,6 +3,7 @@
 
 import json
 from datetime import date, datetime
+
 from typing import Optional
 
 from .connection import obter_conexao
