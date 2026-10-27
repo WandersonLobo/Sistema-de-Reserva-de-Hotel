@@ -264,4 +264,18 @@ def buscar_reserva(id_: int) -> Optional[Reserva]:
     finally:
         conexao.close()
 
+def buscar_quartos_ocupados_no_periodo(inicio: date, fim: date) -> set[int]:
+    """Retorna os números dos quartos com reservas ativas (CONFIRMADA ou CHECKIN) no período."""
+    conexao = obter_conexao()
+    try:
+        linhas = conexao.execute(
+            """
+            SELECT DISTINCT quarto_numero FROM reservas
+            WHERE status IN ('CONFIRMADA', 'CHECKIN')
+              AND data_entrada < ? AND data_saida > ?
+            """,
+            (fim.isoformat(), inicio.isoformat()),
+        ).fetchall()
+        return {int(linha["quarto_numero"]) for linha in linhas}
+    finally:
         conexao.close()
