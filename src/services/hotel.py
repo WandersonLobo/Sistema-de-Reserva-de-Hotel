@@ -20,6 +20,7 @@ from src.models.exceptions import (
     PagamentoInsuficienteException,
     QuartoIndisponivelException,
     TransicaoEstadoInvalidaException,
+    CapacidadeExcedidaException
 )
 from src.services.rates import CalculadoraTarifa
 from src.services.reports import ServicoRelatorios
@@ -125,7 +126,54 @@ class Hotel:
         origem: OrigemReserva = OrigemReserva.BALCAO
     ) -> Reserva:
         """Cria reserva validando overbooking e calculando tarifas dinâmicas."""
-        pass
+        if (
+            not isinstance(entrada, date)
+            or not isinstance(saida, date)
+            or isinstance(entrada, datetime)
+            or isinstance(saida, datetime)
+        ):
+            raise DadosInvalidosException("Entrada e saída devem ser datas do tipo date.")
+        if entrada >= saida:
+            raise DadosInvalidosException("A data de entrada deve ser anterior à data de saída.")
+        if not isinstance(num_hospedes, int) or num_hospedes < 1:
+            raise DadosInvalidosException("O número de hóspedes deve ser pelo menos 1.")
+        hospede = data.buscar_hospede(hospede_id)
+        if hospede is None:
+            raise DadosInvalidosException(f"Hóspede {hospede_id} não encontrado.")
+        quarto = data.buscar_quarto(quarto_num)
+        if quarto is None:
+            raise DadosInvalidosException(f"Quarto {quarto_num} não encontrado.")
+        if num_hospedes > quarto.capacidade:
+            raise CapacidadeExcedidaException(
+                f"O número de hóspedes ({num_hospedes}) excede a capacidade do quarto ({quarto.capacidade})."
+            )
+        # Prevenção de Overbooking
+        disponiveis = self.buscar_quartos_disponiveis(entrada, saida)
+        if not any(q.numero == quarto_num for q in disponiveis):
+            raise QuartoIndisponivelException(
+                f"O quarto {quarto_num} não está disponível entre {entrada} e {saida}."
+            )
+        # Cálculo dinâmico das diárias
+        total_diarias = CalculadoraTarifa.calcular_total_reserva(
+            quarto=quarto,
+            inicio=entrada,
+            fim=saida,
+            settings=self._settings,
+        )
+        reserva = Reserva(
+            id_=0,
+            hospede=hospede,
+            quarto=quarto,
+            data_entrada=entrada,
+            data_saida=saida,
+            num_hospedes=num_hospedes,
+            origem=origem,
+            valor_total_diarias=total_diarias,
+            status=StatusReserva.CONFIRMADA,
+        )
+        novo_id = data.salvar_reserva(reserva)
+        reserva.id = novo_id
+        return reserva
 
     def processar_checkin(self, reserva_id: int, momento: datetime) -> None:
         """Efetua check-in validando tolerância, status CONFIRMADA e quarto livre."""
