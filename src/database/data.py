@@ -1,9 +1,7 @@
-
 """Operações de persistência do sistema."""
 
 import json
 from datetime import date, datetime
-
 from typing import Optional
 
 from .connection import obter_conexao
@@ -11,7 +9,7 @@ from src.models.person import Hospede
 from src.models.reservation import Reserva
 from src.models.room import Quarto
 
-# --- Funçôes auxiliares para transformar uma linha do banco em um objeto Quarto --- #
+# --- Funções auxiliares para transformar uma linha do banco em um objeto Quarto --- #
 def _quarto_da_linha(linha) -> Quarto:
     return Quarto.from_dict(dict(linha)) # O from_dict é um método da classe Quarto que cria um objeto a partir de um dicionário
 
@@ -28,6 +26,53 @@ def listar_quartos() -> list[Quarto]:
             "SELECT * FROM quartos ORDER BY numero"
         ).fetchall()
         return [_quarto_da_linha(linha) for linha in linhas] # Método de compreensão de listas que transforma cada linha em um objeto Quarto
+    finally:
+        conexao.close()
+
+# Função para salvar ou atualizar um quarto no banco de dados, retornando o número do quarto
+def salvar_quarto(quarto: Quarto) -> int:
+    """Insere ou atualiza um quarto e retorna seu número."""
+    if not isinstance(quarto, Quarto):
+        raise ValueError("O quarto fornecido para salvamento é inválido.")
+
+    inicio_manut = (
+        quarto.inicio_manutencao.isoformat()
+        if quarto.inicio_manutencao is not None
+        else None
+    )
+    fim_manut = (
+        quarto.fim_manutencao.isoformat()
+        if quarto.fim_manutencao is not None
+        else None
+    )
+
+    conexao = obter_conexao()
+    try:
+        with conexao:
+            conexao.execute(
+                """
+                INSERT OR REPLACE INTO quartos (
+                    numero, tipo, capacidade, tarifa_base, status,
+                    motivo_manutencao, inicio_manutencao, fim_manutencao,
+                    tem_varanda, tem_hidromassagem, taxa_servico_adicional
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    quarto.numero,
+                    quarto.tipo.value,
+                    quarto.capacidade,
+                    quarto.tarifa_base,
+                    quarto.status.value,
+                    quarto.motivo_manutencao,
+                    inicio_manut,
+                    fim_manut,
+                    int(getattr(quarto, "tem_varanda", False)),
+                    int(getattr(quarto, "tem_hidromassagem", False)),
+                    float(getattr(quarto, "taxa_servico_adicional", 0.0)),
+                ),
+            )
+        return quarto.numero
     finally:
         conexao.close()
 
@@ -217,4 +262,6 @@ def buscar_reserva(id_: int) -> Optional[Reserva]:
 
         return Reserva.from_dict(dados) # Reconstrói e retorna um objeto Reserva a partir dos dados completos.
     finally:
+        conexao.close()
+
         conexao.close()
