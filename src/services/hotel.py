@@ -1,5 +1,5 @@
 
-from datetime import date, datetime
+from datetime import date, datetime,timedelta, time
 from typing import Optional
 import json
 from pathlib import Path
@@ -51,6 +51,7 @@ class Hotel:
     # =========================================================================
     def cadastrar_quarto(self, quarto: Quarto) -> None:
         """Cadastra um novo quarto no hotel e salva no banco."""
+
         if not isinstance(quarto, Quarto):
             raise DadosInvalidosException("O objeto quarto fornecido é inválido.")
         data.salvar_quarto(quarto)
@@ -82,6 +83,7 @@ class Hotel:
 
     def buscar_quartos_disponiveis(self, inicio: date, fim: date, tipo: TipoQuarto | None = None) -> list[Quarto]:
         """Retorna quartos que não possuem reservas ativas nem manutenção no período."""
+
         if (
             not isinstance(inicio, date)
             or not isinstance(fim, date)
@@ -126,6 +128,7 @@ class Hotel:
         origem: OrigemReserva = OrigemReserva.BALCAO
     ) -> Reserva:
         """Cria reserva validando overbooking e calculando tarifas dinâmicas."""
+
         if (
             not isinstance(entrada, date)
             or not isinstance(saida, date)
@@ -177,19 +180,116 @@ class Hotel:
 
     def processar_checkin(self, reserva_id: int, momento: datetime) -> None:
         """Efetua check-in validando tolerância, status CONFIRMADA e quarto livre."""
-        pass
+
+        if not isinstance(reserva_id, int) or reserva_id <= 0:
+            raise DadosInvalidosException("O ID da reserva deve ser um número inteiro positivo.")
+        if not isinstance(momento, datetime):
+            raise DadosInvalidosException("O momento de check-in deve ser uma instância de datetime.")
+        reserva = data.buscar_reserva(reserva_id)
+        if reserva is None:
+            raise DadosInvalidosException(f"Reserva {reserva_id} não encontrada.")
+        
+        # Validação de janela e tolerância
+        config_horarios = self._settings.get("entrada_e_saida", {})
+        hora_str = config_horarios.get("checkIn_a_partir", "14:00")
+        tolerancia_min = int(config_horarios.get("tolerancia_min", 30))
+        h, m = map(int, hora_str.split(":"))
+        horario_padrao = datetime.combine(reserva.data_entrada, time(h, m))
+        horario_minimo = horario_padrao - timedelta(minutes=tolerancia_min)
+
+        if momento < horario_minimo:
+            raise DadosInvalidosException(
+                f"Check-in antecipado não permitido. Horário mínimo: {horario_minimo}."
+            )
+        reserva.realizar_checkin(momento, tolerancia_min=tolerancia_min)
+        data.salvar_reserva(reserva)
+        if reserva.quarto:
+            data.salvar_quarto(reserva.quarto)
 
     def processar_checkout(self, reserva_id: int, momento: datetime) -> float:
         """Efetua check-out calculando diárias extras e barrando se houver dívida."""
-        pass
+
+        if not isinstance(reserva_id, int) or reserva_id <= 0:
+            raise DadosInvalidosException("O ID da reserva deve ser um número inteiro positivo.")
+        if not isinstance(momento, datetime):
+            raise DadosInvalidosException("O momento de check-out deve ser uma instância de datetime.")
+        reserva = data.buscar_reserva(reserva_id)
+        if reserva is None:
+            raise DadosInvalidosException(f"Reserva {reserva_id} não encontrada.")
+        
+        # Validação de janela e atraso
+        config_horarios = self._settings.get("entrada_e_saida", {})
+        hora_str = config_horarios.get("checkOut_ate", "12:00")
+        tolerancia_min = int(config_horarios.get("tolerancia_min", 30))
+        h, m = map(int, hora_str.split(":"))
+        horario_padrao = datetime.combine(reserva.data_saida, time(h, m))
+        horario_limite = horario_padrao + timedelta(minutes=tolerancia_min)
+        taxa_multa_atraso = 0.0
+
+        if momento > horario_limite:
+            # Cobrança de diária extra pelo atraso
+            taxa_multa_atraso = reserva.quarto.calcular_diaria() if reserva.quarto else 0.0
+        total_devido = reserva.realizar_checkout(momento, taxa_multa_atraso=taxa_multa_atraso)
+        data.salvar_reserva(reserva)
+        if reserva.quarto:
+            data.salvar_quarto(reserva.quarto)
+        return total_devido
 
     def processar_cancelamento(self, reserva_id: int, momento: datetime | None = None) -> float:
         """Cancela a reserva aplicando multa de 50% se for feito em < 48h."""
-        pass
+
+        if not isinstance(reserva_id, int) or reserva_id <= 0:
+            raise DadosInvalidosException("O ID da reserva deve ser um número inteiro positivo.")
+        if momento is not None and not isinstance(momento, datetime):
+            raise DadosInvalidosException("O momento do cancelamento deve ser uma instância de datetime.")
+        reserva = data.buscar_reserva(reserva_id)
+        if reserva is None:
+            raise DadosInvalidosException(f"Reserva {reserva_id} não encontrada.")
+        
+        momento_cancelamento = momento or datetime.now()
+        config_multa = self._settings.get("multa_de_cancelamento", {})
+        horas_antecedencia = float(config_multa.get("horas_antecedencia", 48))
+        percentual_multa = float(config_multa.get("percentual", 0.5))
+        config_horarios = self._settings.get("entrada_e_saida", {})
+        hora_str = config_horarios.get("checkIn_a_partir", "14:00")
+        h, m = map(int, hora_str.split(":"))
+        horario_previsto_checkin = datetime.combine(reserva.data_entrada, time(h, m))
+        limite_sem_multa = horario_previsto_checkin - timedelta(hours=horas_antecedencia)
+
+        if momento_cancelamento > limite_sem_multa:
+            multa = round(reserva.valor_total_diarias * percentual_multa, 2)
+        else:
+            multa = 0.0
+        valor_multa = reserva.cancelar(taxa_multa=multa)
+        data.salvar_reserva(reserva)
+        if reserva.quarto:
+            data.salvar_quarto(reserva.quarto)
+        return valor_multa
 
     def processar_noshows(self, momento_atual: datetime) -> list[int]:
         """Varre reservas não comparecidas após a tolerância e libera os quartos."""
-        pass
+
+        if not isinstance(momento_atual, datetime):
+            raise DadosInvalidosException("O momento atual deve ser uma instância de datetime.")
+        
+        cfg_noshow = self._settings.get("tolerancia_no_show", {})
+        minutos_tolerancia = int(cfg_noshow.get("minutos", 120))
+        cfg_horarios = self._settings.get("entrada_e_saida", {})
+        hora_str = cfg_horarios.get("checkIn_a_partir", "14:00")
+        h, m = map(int, hora_str.split(":"))
+        reservas_confirmadas = data.listar_reservas(status="CONFIRMADA")
+        noshows_processados: list[int] = []
+
+        for reserva in reservas_confirmadas:
+            horario_previsto = datetime.combine(reserva.data_entrada, time(h, m))
+            horario_limite = horario_previsto + timedelta(minutes=minutos_tolerancia)
+            if momento_atual > horario_limite:
+                reserva.marcar_noshow()
+                data.salvar_reserva(reserva)
+                if reserva.quarto:
+                    data.salvar_quarto(reserva.quarto)
+                noshows_processados.append(reserva.id)
+        return noshows_processados
 
     # =========================================================================
     # Pagamentos e Consumo Extra
