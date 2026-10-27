@@ -109,8 +109,8 @@ classDiagram
 
 > 📄 **Documentação Completa dos Diagramas:**  
 > Para visualizar os **diagramas individuais detalhados de cada classe** (com todos os atributos, `@property`, tipagens e métodos especiais), além das **Máquinas de Estado** e **Diagramas de Sequência**, acesse a especificação completa no repositório:  
-> 👉 **[Especificação UML Completa (`docs/uml_diagram.md`)](./Docs/uml_diagram.md)**  
-> 👉 **[Regras de Negócio e Políticas (`Docs/busines_rules.md`)](./Docs/busines_rules.md)**  
+> 👉 **[Especificação UML Completa (`docs/uml_diagram.md`)](./docs/uml_diagram.md)**  
+> 👉 **[Regras de Negócio e Políticas (`docs/busines_rules.md`)](./docs/busines_rules.md)**  
 ---
 
 ## 4. Arquitetura e Estrutura de Diretórios
