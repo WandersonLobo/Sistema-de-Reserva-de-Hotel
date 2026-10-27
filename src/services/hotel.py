@@ -245,7 +245,8 @@ class Hotel:
         reserva = data.buscar_reserva(reserva_id)
         if reserva is None:
             raise DadosInvalidosException(f"Reserva {reserva_id} não encontrada.")
-        
+
+            # Configurações de multa e horários
         momento_cancelamento = momento or datetime.now()
         config_multa = self._settings.get("multa_de_cancelamento", {})
         horas_antecedencia = float(config_multa.get("horas_antecedencia", 48))
@@ -272,6 +273,7 @@ class Hotel:
         if not isinstance(momento_atual, datetime):
             raise DadosInvalidosException("O momento atual deve ser uma instância de datetime.")
         
+            # Configurações de tolerância e horários
         cfg_noshow = self._settings.get("tolerancia_no_show", {})
         minutos_tolerancia = int(cfg_noshow.get("minutos", 120))
         cfg_horarios = self._settings.get("entrada_e_saida", {})
@@ -296,8 +298,47 @@ class Hotel:
     # =========================================================================
     def registrar_pagamento(self, reserva_id: int, valor: float, metodo: MetodoPagamento) -> Pagamento:
         """Registra um pagamento (PIX/Cartão/Dinheiro) na reserva e grava no banco."""
-        pass
+             # Testes de validação
+        if not isinstance(reserva_id, int) or reserva_id <= 0:
+            raise DadosInvalidosException("O ID da reserva deve ser um número inteiro positivo.")
+        try:
+            val_float = float(valor)
+        except (ValueError, TypeError):
+            raise DadosInvalidosException("O valor do pagamento deve ser um número real válido.")
+        if val_float <= 0.0:
+            raise DadosInvalidosException("O valor do pagamento deve ser estritamente positivo.")
+        if not isinstance(metodo, MetodoPagamento):
+            raise DadosInvalidosException("O método de pagamento informado é inválido.")
+        reserva = data.buscar_reserva(reserva_id)
+        if reserva is None:
+            raise DadosInvalidosException(f"Reserva {reserva_id} não encontrada.")
+        
+        pagamento = Pagamento(
+            id_=len(reserva.pagamentos) + 1,
+            valor=val_float,
+            metodo=metodo,
+            data_pagamento=datetime.now(),
+        )
+        reserva.adicionar_pagamento(pagamento)
+        data.salvar_reserva(reserva)
+        return pagamento
 
     def lancar_adicional(self, reserva_id: int, descricao: str, preco: float, quantidade: int = 1) -> Adicional:
         """Lança consumo (frigobar, refeição) na reserva em estadia ativa."""
-        pass
+
+            # Testes de validação
+        if not isinstance(reserva_id, int) or reserva_id <= 0:
+            raise DadosInvalidosException("O ID da reserva deve ser um número inteiro positivo.")
+        reserva = data.buscar_reserva(reserva_id)
+        if reserva is None:
+            raise DadosInvalidosException(f"Reserva {reserva_id} não encontrada.")
+        
+        adicional = Adicional(
+            id_=len(reserva.adicionais) + 1,
+            descricao=descricao,
+            preco_unitario=preco,
+            quantidade=quantidade,
+        )
+        reserva.adicionar_adicional(adicional)
+        data.salvar_reserva(reserva)
+        return adicional
