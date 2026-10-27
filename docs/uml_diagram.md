@@ -932,7 +932,7 @@ sequenceDiagram
 
 ## 4. Especificação Textual dos Métodos Especiais e Encapsulamento
 
-### 4.1. Métodos Especiais Exigidos pela Rubrica (≥ 4 métodos)
+### 4.1. Métodos Especiais
 1. **`Quarto.__str__()` e `__repr__()`**:
    * Fornecem representação textual amigável e técnica do quarto, incluindo número, tipo, capacidade e status.
 2. **`Quarto.__lt__(outro: Quarto) -> bool`**:

@@ -1,4 +1,3 @@
-
 """Operações de persistência do sistema."""
 
 import json
@@ -10,7 +9,7 @@ from src.models.person import Hospede
 from src.models.reservation import Reserva
 from src.models.room import Quarto
 
-# --- Funçôes auxiliares para transformar uma linha do banco em um objeto Quarto --- #
+# --- Funções auxiliares para transformar uma linha do banco em um objeto Quarto --- #
 def _quarto_da_linha(linha) -> Quarto:
     return Quarto.from_dict(dict(linha)) # O from_dict é um método da classe Quarto que cria um objeto a partir de um dicionário
 
@@ -27,6 +26,53 @@ def listar_quartos() -> list[Quarto]:
             "SELECT * FROM quartos ORDER BY numero"
         ).fetchall()
         return [_quarto_da_linha(linha) for linha in linhas] # Método de compreensão de listas que transforma cada linha em um objeto Quarto
+    finally:
+        conexao.close()
+
+# Função para salvar ou atualizar um quarto no banco de dados, retornando o número do quarto
+def salvar_quarto(quarto: Quarto) -> int:
+    """Insere ou atualiza um quarto e retorna seu número."""
+    if not isinstance(quarto, Quarto):
+        raise ValueError("O quarto fornecido para salvamento é inválido.")
+
+    inicio_manut = (
+        quarto.inicio_manutencao.isoformat()
+        if quarto.inicio_manutencao is not None
+        else None
+    )
+    fim_manut = (
+        quarto.fim_manutencao.isoformat()
+        if quarto.fim_manutencao is not None
+        else None
+    )
+
+    conexao = obter_conexao()
+    try:
+        with conexao:
+            conexao.execute(
+                """
+                INSERT OR REPLACE INTO quartos (
+                    numero, tipo, capacidade, tarifa_base, status,
+                    motivo_manutencao, inicio_manutencao, fim_manutencao,
+                    tem_varanda, tem_hidromassagem, taxa_servico_adicional
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    quarto.numero,
+                    quarto.tipo.value,
+                    quarto.capacidade,
+                    quarto.tarifa_base,
+                    quarto.status.value,
+                    quarto.motivo_manutencao,
+                    inicio_manut,
+                    fim_manut,
+                    int(getattr(quarto, "tem_varanda", False)),
+                    int(getattr(quarto, "tem_hidromassagem", False)),
+                    float(getattr(quarto, "taxa_servico_adicional", 0.0)),
+                ),
+            )
+        return quarto.numero
     finally:
         conexao.close()
 
@@ -120,61 +166,78 @@ def listar_temporadas(data_referencia: date) -> list[dict]:
 
 # Função para salvar uma reserva no banco de dados, retornando o ID gerado
 def salvar_reserva(reserva: Reserva) -> int:
-    """Insere uma reserva e retorna seu ID."""
+    """Insere ou atualiza uma reserva e retorna seu ID."""
     if reserva.hospede is None or reserva.quarto is None:
         raise ValueError("A reserva precisa ter um hóspede e um quarto.")
 
     agora = datetime.now().isoformat()
+    checkin_str = reserva.checkin_real.isoformat() if reserva.checkin_real else None
+    checkout_str = reserva.checkout_real.isoformat() if reserva.checkout_real else None
+    pagamentos_json = json.dumps([p.to_dict() for p in reserva.pagamentos])
+    adicionais_json = json.dumps([a.to_dict() for a in reserva.adicionais])
+
     conexao = obter_conexao()
     try:
         with conexao:
-            cursor = conexao.execute(
-                """
-                INSERT INTO reservas (
-                    hospede_id, quarto_numero, data_entrada, data_saida,
-                    num_hospedes, origem, status, valor_total_diarias,
-                    checkin_real, checkout_real, pagamentos, adicionais,
-                    data_criacao, data_atualizacao
+            if reserva.id and reserva.id > 0:
+                conexao.execute(
+                    """
+                    UPDATE reservas SET
+                        hospede_id = ?, quarto_numero = ?, data_entrada = ?, data_saida = ?,
+                        num_hospedes = ?, origem = ?, status = ?, valor_total_diarias = ?,
+                        checkin_real = ?, checkout_real = ?, pagamentos = ?, adicionais = ?,
+                        data_atualizacao = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        reserva.hospede.id,
+                        reserva.quarto.numero,
+                        reserva.data_entrada.isoformat(),
+                        reserva.data_saida.isoformat(),
+                        reserva.num_hospedes,
+                        reserva.origem.value,
+                        reserva.status.value,
+                        reserva.valor_total_diarias,
+                        checkin_str,
+                        checkout_str,
+                        pagamentos_json,
+                        adicionais_json,
+                        agora,
+                        reserva.id,
+                    ),
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    reserva.hospede.id,
-                    reserva.quarto.numero,
-                    reserva.data_entrada.isoformat(), # Converte a data para texto no formato aceito pelo SQLite.
-                    reserva.data_saida.isoformat(),  # Converte a data de saída para texto ISO.
-                    reserva.num_hospedes,
-                    reserva.origem.value,
-                    reserva.status.value,
-                    reserva.valor_total_diarias,
-
-                    ( # Salva o check-in como texto ou NULL se ainda não aconteceu.
-                        reserva.checkin_real.isoformat()
-                        if reserva.checkin_real is not None
-                        else None
+                return reserva.id
+            else:
+                cursor = conexao.execute(
+                    """
+                    INSERT INTO reservas (
+                        hospede_id, quarto_numero, data_entrada, data_saida,
+                        num_hospedes, origem, status, valor_total_diarias,
+                        checkin_real, checkout_real, pagamentos, adicionais,
+                        data_criacao, data_atualizacao
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        reserva.hospede.id,
+                        reserva.quarto.numero,
+                        reserva.data_entrada.isoformat(),
+                        reserva.data_saida.isoformat(),
+                        reserva.num_hospedes,
+                        reserva.origem.value,
+                        reserva.status.value,
+                        reserva.valor_total_diarias,
+                        checkin_str,
+                        checkout_str,
+                        pagamentos_json,
+                        adicionais_json,
+                        agora,
+                        agora,
                     ),
-
-                    ( # Salva o check-out como texto ou NULL se ainda não aconteceu.
-                        reserva.checkout_real.isoformat()
-                        if reserva.checkout_real is not None
-                        else None
-                    ),
-
-                    json.dumps( # Converte os pagamentos em uma lista de dicionários e depois em JSON.
-                        [pagamento.to_dict() for pagamento in reserva.pagamentos]
-                    ),
-
-                    json.dumps( # Converte os adicionais em uma lista de dicionários e depois em JSON.
-                        [adicional.to_dict() for adicional in reserva.adicionais]
-                    ),
-                    agora, # Salva a data de criação como o momento atual.
-                    agora, # Salva a data de atualização como o momento atual.
-                ),
-            )
-
-            if cursor.lastrowid is None:
-                raise RuntimeError("O banco não retornou o ID da reserva.")
-            return int(cursor.lastrowid)
+                )
+                if cursor.lastrowid is None:
+                    raise RuntimeError("O banco não retornou o ID da reserva.")
+                return int(cursor.lastrowid)
     finally:
         conexao.close()
 
@@ -215,5 +278,42 @@ def buscar_reserva(id_: int) -> Optional[Reserva]:
         dados["adicionais"] = json.loads(dados["adicionais"])
 
         return Reserva.from_dict(dados) # Reconstrói e retorna um objeto Reserva a partir dos dados completos.
+    finally:
+        conexao.close()
+
+def buscar_quartos_ocupados_no_periodo(inicio: date, fim: date) -> set[int]:
+    """Retorna os números dos quartos com reservas ativas (CONFIRMADA ou CHECKIN) no período."""
+    conexao = obter_conexao()
+    try:
+        linhas = conexao.execute(
+            """
+            SELECT DISTINCT quarto_numero FROM reservas
+            WHERE status IN ('CONFIRMADA', 'CHECKIN')
+              AND data_entrada < ? AND data_saida > ?
+            """,
+            (fim.isoformat(), inicio.isoformat()),
+        ).fetchall()
+        return {int(linha["quarto_numero"]) for linha in linhas}
+    finally:
+        conexao.close()
+
+def listar_reservas(status: Optional[str] = None) -> list[Reserva]:
+    """Retorna reservas cadastradas, opcionalmente filtradas por status."""
+    conexao = obter_conexao()
+    try:
+        if status:
+            linhas = conexao.execute(
+                "SELECT id FROM reservas WHERE status = ? ORDER BY id", (status,)
+            ).fetchall()
+        else:
+            linhas = conexao.execute("SELECT id FROM reservas ORDER BY id").fetchall()
+        
+        # Reaproveita a reconstrução segura já feita em buscar_reserva
+        reservas = []
+        for linha in linhas:
+            r = buscar_reserva(linha["id"])
+            if r is not None:
+                reservas.append(r)
+        return reservas
     finally:
         conexao.close()
