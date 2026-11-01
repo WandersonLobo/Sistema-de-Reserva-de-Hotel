@@ -1,0 +1,31 @@
+name: CI - Testes
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    name: Testes Python
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Baixar o código do repositório
+        uses: actions/checkout@v7
+
+      - name: Configurar o Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+          cache: pip
+
+      - name: Instalar as dependências
+        run: python -m pip install -r requirements.txt
+
+      - name: Executar os testes
+        run: python -m pytest tests -v --tb=short
