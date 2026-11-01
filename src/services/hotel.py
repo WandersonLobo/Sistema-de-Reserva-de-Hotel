@@ -197,10 +197,17 @@ class Hotel:
         horario_padrao = datetime.combine(reserva.data_entrada, time(h, m))
         horario_minimo = horario_padrao - timedelta(minutes=tolerancia_min)
 
+         # Validação de data de entrada
+        if momento.date() != reserva.data_entrada:
+            raise DadosInvalidosException(
+        "O check-in deve ser realizado na data de entrada da reserva."
+        )
+         # Validação de horário mínimo
         if momento < horario_minimo:
             raise DadosInvalidosException(
                 f"Check-in antecipado não permitido. Horário mínimo: {horario_minimo}."
             )
+        
         reserva.realizar_checkin(momento, tolerancia_min=tolerancia_min)
         data.salvar_reserva(reserva)
         if reserva.quarto:
