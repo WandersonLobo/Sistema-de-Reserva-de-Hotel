@@ -32,7 +32,7 @@ def hotel(tmp_path, monkeypatch):
         "temporadas": [{"inicio": "2026-07-01", "fim": "2026-08-31", "multiplicador": 1.3}],
         "fim_de_semana": {"sabado": 1.4, "domingo": 1.1},
         "multa_de_cancelamento": {"horas_antecedencia": 48, "percentual": 0.5},
-        "tolerancia_no_show": {"minutos": 120},
+        "tolerancia_no_show": {"horario_referencia": "23:59", "minutos": 120},
     })
     servico.cadastrar_quarto(QuartoSimples(numero=101, capacidade=2, tarifa_base=100.0))
     servico.cadastrar_quarto(QuartoDuplo(numero=202, capacidade=2, tarifa_base=200.0))
@@ -215,17 +215,54 @@ def test_noshow_nao_afeta_reserva_com_checkin_realizado(hotel, reserva):
     assert data.buscar_quarto(101).status == StatusQuarto.OCUPADO
 
 
-# Pendências identificadas na comparação com o enunciado, sem alterar os serviços.
-@pytest.mark.xfail(strict=True, reason="check-in ainda não rejeita dias posteriores à data de entrada")
 def test_checkin_em_dia_posterior_deve_ser_rejeitado(hotel, reserva):
     with pytest.raises(DadosInvalidosException):
         hotel.processar_checkin(reserva.id, datetime(2026, 11, 11, 14))
     assert data.buscar_reserva(reserva.id).status == StatusReserva.CONFIRMADA
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError,
-                   reason="no-show usa 14h como referência; o enunciado determina 23h59")
-def test_noshow_respeita_tolerancia_apos_2359_do_dia_da_entrada(hotel, reserva):
-    # Com 120 minutos de tolerância, o limite é 11/11 às 01h59.
-    assert hotel.processar_noshows(datetime(2026, 11, 11, 1, 59)) == []
-    assert hotel.processar_noshows(datetime(2026, 11, 11, 2)) == [reserva.id]
+@pytest.mark.parametrize("momento, deve_processar", [
+    (datetime(2026, 11, 10, 16, 1), False),
+    (datetime(2026, 11, 11, 1, 58, 59), False),
+    (datetime(2026, 11, 11, 1, 59), False),
+    (datetime(2026, 11, 11, 1, 59, 1), True),
+])
+def test_noshow_respeita_tolerancia_apos_2359_do_dia_da_entrada(
+    hotel, reserva, momento, deve_processar
+):
+    """O limite é 01h59 do dia seguinte; só depois disso a reserva pode mudar."""
+    esperado = [reserva.id] if deve_processar else []
+    assert hotel.processar_noshows(momento) == esperado
+    status = StatusReserva.NO_SHOW if deve_processar else StatusReserva.CONFIRMADA
+    assert data.buscar_reserva(reserva.id).status == status
+    disponiveis = {q.numero for q in hotel.buscar_quartos_disponiveis(
+        date(2026, 11, 10), date(2026, 11, 12)
+    )}
+    assert (101 in disponiveis) == deve_processar
+
+
+@pytest.mark.parametrize("referencia, minutos, limite", [
+    ("18:30", 30, datetime(2026, 11, 10, 19)),
+    ("23:59", 0, datetime(2026, 11, 10, 23, 59)),
+    ("22:00", 180, datetime(2026, 11, 11, 1)),
+])
+def test_noshow_usa_referencia_e_tolerancia_configuradas(hotel, reserva, referencia, minutos, limite):
+    configurado = Hotel(settings={
+        "entrada_e_saida": {"checkIn_a_partir": "09:00"},
+        "tolerancia_no_show": {"horario_referencia": referencia, "minutos": minutos},
+    })
+    # Os limites esperados são explícitos para detectar cálculos incorretos do serviço.
+    assert configurado.processar_noshows(limite - timedelta(seconds=1)) == []
+    assert configurado.processar_noshows(limite) == []
+    assert data.buscar_reserva(reserva.id).status == StatusReserva.CONFIRMADA
+    assert configurado.processar_noshows(limite + timedelta(seconds=1)) == [reserva.id]
+    assert data.buscar_reserva(reserva.id).status == StatusReserva.NO_SHOW
+    assert configurado.processar_noshows(limite + timedelta(minutes=1)) == []
+
+
+def test_noshow_carrega_politica_do_settings_do_projeto(hotel, reserva):
+    """Também confere a configuração real, além das configurações isoladas dos testes."""
+    configurado = Hotel()
+    assert configurado.processar_noshows(datetime(2026, 11, 10, 16, 1)) == []
+    assert configurado.processar_noshows(datetime(2026, 11, 11, 1, 59)) == []
+    assert configurado.processar_noshows(datetime(2026, 11, 11, 2)) == [reserva.id]

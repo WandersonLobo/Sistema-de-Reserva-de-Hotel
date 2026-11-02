@@ -24,7 +24,7 @@ def cliente(tmp_path, monkeypatch):
             "checkIn_a_partir": "14:00", "checkOut_ate": "12:00", "tolerancia_min": 30,
         },
         "multa_de_cancelamento": {"horas_antecedencia": 48, "percentual": 0.5},
-        "tolerancia_no_show": {"minutos": 120},
+        "tolerancia_no_show": {"horario_referencia": "23:59", "minutos": 120},
     }))
 
     with TestClient(app_module.app) as client:
@@ -163,7 +163,7 @@ def test_fluxo_completo_de_atendimento_percorre_todos_os_endpoints(cliente):
         hospede["id"], entrada="2026-11-20", saida="2026-11-22"
     ))
     noshows = enviar(cliente, "POST", "/reservas/noshows",
-                     json={"momento_atual": "2026-11-20T16:01:00"})
+                     json={"momento_atual": "2026-11-21T02:00:00"})
     assert noshows == {"reservas_processadas": [ausente["id"]], "quantidade": 1}
     assert data.buscar_reserva(ausente["id"]).status.value == "NO_SHOW"
     assert 901 in numeros_disponiveis(cliente, entrada="2026-11-20", saida="2026-11-22")
@@ -230,16 +230,42 @@ def test_cancelamento_respeita_limite_de_48h_e_libera_periodo(cliente, reserva, 
 
 
 def test_noshow_respeita_tolerancia_e_nao_processa_duas_vezes(cliente, reserva):
+    ainda_no_dia = enviar(cliente, "POST", "/reservas/noshows",
+                          json={"momento_atual": "2026-11-10T16:01:00"})
+    assert ainda_no_dia == {"reservas_processadas": [], "quantidade": 0}
     antes = enviar(cliente, "POST", "/reservas/noshows",
-                   json={"momento_atual": "2026-11-10T16:00:00"})
-    assert antes["quantidade"] == 0
+                   json={"momento_atual": "2026-11-11T01:59:00"})
+    assert antes == {"reservas_processadas": [], "quantidade": 0}
     assert data.buscar_reserva(reserva["id"]).status.value == "CONFIRMADA"
+    assert 901 not in numeros_disponiveis(cliente)
     depois = enviar(cliente, "POST", "/reservas/noshows",
-                    json={"momento_atual": "2026-11-10T16:01:00"})
-    assert depois["reservas_processadas"] == [reserva["id"]]
+                    json={"momento_atual": "2026-11-11T01:59:01"})
+    assert depois == {"reservas_processadas": [reserva["id"]], "quantidade": 1}
+    assert data.buscar_reserva(reserva["id"]).status.value == "NO_SHOW"
+    assert 901 in numeros_disponiveis(cliente)
     repetida = enviar(cliente, "POST", "/reservas/noshows",
-                      json={"momento_atual": "2026-11-10T16:02:00"})
-    assert repetida["quantidade"] == 0
+                      json={"momento_atual": "2026-11-11T02:00:00"})
+    assert repetida == {"reservas_processadas": [], "quantidade": 0}
+
+
+def test_noshow_processa_somente_confirmadas_e_preserva_quarto_ocupado(cliente, reserva):
+    em_estadia = enviar(cliente, "POST", "/reservas", status=201,
+                        json=dados_reserva(reserva["hospede"]["id"], quarto_num=101, num_hospedes=1))
+    enviar(cliente, "POST", f"/reservas/{em_estadia['id']}/checkin",
+           json={"momento": "2026-11-10T14:00:00"})
+    cancelavel = enviar(cliente, "POST", "/reservas", status=201,
+                        json=dados_reserva(reserva["hospede"]["id"], quarto_num=102, num_hospedes=1))
+    enviar(cliente, "POST", f"/reservas/{cancelavel['id']}/cancelar",
+           json={"momento": "2026-11-08T14:00:00"})
+
+    resposta = enviar(cliente, "POST", "/reservas/noshows",
+                      json={"momento_atual": "2026-11-11T02:00:00"})
+    assert resposta == {"reservas_processadas": [reserva["id"]], "quantidade": 1}
+    assert data.buscar_reserva(reserva["id"]).status.value == "NO_SHOW"
+    assert data.buscar_reserva(em_estadia["id"]).status.value == "CHECKIN"
+    assert data.buscar_reserva(cancelavel["id"]).status.value == "CANCELADA"
+    assert data.buscar_quarto(101).status.value == "OCUPADO"
+    assert data.buscar_quarto(901).status.value == "DISPONIVEL"
 
 
 def test_reserva_conflitante_e_capacidade_excedida_nao_gravam_dados(cliente, reserva):
