@@ -52,8 +52,8 @@ classDiagram
     direction TB
 
     %% Mixins
-    class AuditoriaMixin { <<mixin>> }
-    class SerializavelMixin { <<mixin>> }
+    class Auditoria { <<mixin>> }
+    class Serializavel { <<mixin>> }
 
     %% Hierarquia de Pessoas
     class Pessoa { <<abstract>> }
@@ -85,12 +85,12 @@ classDiagram
     Quarto <|-- QuartoLuxo : especializa
 
     %% Relações de Herança Múltipla (Mixins)
-    SerializavelMixin <|-- Pessoa
-    SerializavelMixin <|-- Quarto
-    SerializavelMixin <|-- Reserva
-    SerializavelMixin <|-- Pagamento
-    SerializavelMixin <|-- Adicional
-    AuditoriaMixin <|-- Reserva
+    Serializavel <|-- Pessoa
+    Serializavel <|-- Quarto
+    Serializavel <|-- Reserva
+    Serializavel <|-- Pagamento
+    Serializavel <|-- Adicional
+    Auditoria <|-- Reserva
 
     %% Agregações e Composições
     Reserva o-- "1" Hospede : titular
@@ -99,9 +99,9 @@ classDiagram
     Reserva *-- "0..*" Adicional : compõe
 
     %% Orquestração e Serviços
-    Hotel o-- "0..*" Quarto : gerencia
-    Hotel o-- "0..*" Hospede : cadastra
-    Hotel o-- "0..*" Reserva : orquestra
+    Hotel ..> Quarto : orquestra / persiste
+    Hotel ..> Hospede : cadastra / persiste
+    Hotel ..> Reserva : gerencia ciclo de vida
     Hotel ..> CalculadoraTarifa : utiliza
     Hotel ..> ServicoRelatorios : utiliza
     Hotel ..> HotelException : valida regras
