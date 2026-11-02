@@ -7,6 +7,7 @@ import pytest
 
 from src.models.enums import StatusQuarto, StatusReserva
 from src.models.exceptions import DadosInvalidosException
+from src.models.payment import Adicional, Pagamento
 from src.models.reservation import Reserva
 from src.models.room import QuartoSimples
 from src.services.reports import ServicoRelatorios
@@ -128,9 +129,6 @@ def test_ocupacao_rejeita_periodos_invalidos_mesmo_sem_inventario(inicio, fim):
         ServicoRelatorios.taxa_ocupacao([], [], inicio, fim)
 
 
-# strict=True sinaliza quando a implementação passar a atender o contrato:
-# nesse momento, a marca deve ser removida para o teste virar uma verificação comum.
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason="calcular_adr ainda não foi implementado")
 def test_adr_divide_receita_de_hospedagem_por_diarias_vendidas(quartos):
     reservas = [
         criar_reserva(quartos[0], status=StatusReserva.CHECKOUT, valor=200.0),
@@ -149,9 +147,75 @@ def test_revpar_considera_quartos_sem_venda(quartos):
     ) == 75.0
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason="calcular_adr ainda não foi implementado")
 def test_adr_sem_vendas_retorna_zero():
     assert ServicoRelatorios.calcular_adr([], date(2026, 11, 10), date(2026, 11, 12)) == 0.0
+
+
+@pytest.mark.parametrize("status", list(StatusReserva))
+def test_adr_considera_somente_hospedagens_finalizadas(quartos, status):
+    reserva = criar_reserva(quartos[0], status=status)
+    esperado = 150.0 if status == StatusReserva.CHECKOUT else 0.0
+    assert ServicoRelatorios.calcular_adr(
+        [reserva], date(2026, 11, 10), date(2026, 11, 12)
+    ) == esperado
+
+
+def test_adr_rateia_receita_e_pondera_noites_no_recorte(quartos):
+    reservas = [
+        criar_reserva(quartos[0], entrada=8, saida=12, status=StatusReserva.CHECKOUT, valor=400.0),
+        criar_reserva(quartos[1], entrada=11, saida=12, status=StatusReserva.CHECKOUT, valor=200.0),
+    ]
+    # No recorte: duas noites de R$ 100 e uma de R$ 200; receita de R$ 400 / 3.
+    assert ServicoRelatorios.calcular_adr(
+        reservas, date(2026, 11, 10), date(2026, 11, 12)
+    ) == 133.33
+
+
+def test_adr_exclui_estadias_que_apenas_tocam_os_limites(quartos):
+    reservas = [
+        criar_reserva(quartos[0], entrada=8, saida=10, status=StatusReserva.CHECKOUT),
+        criar_reserva(quartos[1], entrada=12, saida=14, status=StatusReserva.CHECKOUT),
+    ]
+    assert ServicoRelatorios.calcular_adr(
+        reservas, date(2026, 11, 10), date(2026, 11, 12)
+    ) == 0.0
+
+
+def test_adr_ignora_reserva_sem_quarto(quartos):
+    reservas = [
+        criar_reserva(None, status=StatusReserva.CHECKOUT, valor=900.0),
+        criar_reserva(quartos[0], status=StatusReserva.CHECKOUT, valor=200.0),
+    ]
+    assert ServicoRelatorios.calcular_adr(
+        reservas, date(2026, 11, 10), date(2026, 11, 12)
+    ) == 100.0
+
+
+def test_adr_exclui_adicionais_e_nao_modifica_reserva(quartos):
+    reserva = criar_reserva(quartos[0])
+    reserva.realizar_checkin(datetime(2026, 11, 10, 14))
+    reserva.adicionar_adicional(Adicional(descricao="Frigobar", preco_unitario=50.0))
+    reserva.adicionar_pagamento(Pagamento(valor=350.0))
+    reserva.realizar_checkout(datetime(2026, 11, 12, 12))
+    antes = deepcopy(reserva.to_dict())
+
+    assert reserva.valor_total_devido == 350.0
+    assert ServicoRelatorios.calcular_adr(
+        [reserva], date(2026, 11, 10), date(2026, 11, 12)
+    ) == 150.0
+    assert reserva.to_dict() == antes
+
+
+@pytest.mark.parametrize("inicio, fim", [
+    (date(2026, 11, 10), date(2026, 11, 10)),
+    (date(2026, 11, 12), date(2026, 11, 10)),
+    ("2026-11-10", date(2026, 11, 12)),
+    (datetime(2026, 11, 10), date(2026, 11, 12)),
+    (date(2026, 11, 10), datetime(2026, 11, 12)),
+])
+def test_adr_rejeita_periodos_invalidos_mesmo_sem_vendas(inicio, fim):
+    with pytest.raises(DadosInvalidosException):
+        ServicoRelatorios.calcular_adr([], inicio, fim)
 
 
 @pytest.mark.xfail(strict=True, raises=AssertionError, reason="calcular_revpar ainda não foi implementado")
