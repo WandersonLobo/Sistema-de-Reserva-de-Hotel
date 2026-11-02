@@ -197,10 +197,17 @@ class Hotel:
         horario_padrao = datetime.combine(reserva.data_entrada, time(h, m))
         horario_minimo = horario_padrao - timedelta(minutes=tolerancia_min)
 
+         # Validação de data de entrada
+        if momento.date() != reserva.data_entrada:
+            raise DadosInvalidosException(
+        "O check-in deve ser realizado na data de entrada da reserva."
+        )
+         # Validação de horário mínimo
         if momento < horario_minimo:
             raise DadosInvalidosException(
                 f"Check-in antecipado não permitido. Horário mínimo: {horario_minimo}."
             )
+        
         reserva.realizar_checkin(momento, tolerancia_min=tolerancia_min)
         data.salvar_reserva(reserva)
         if reserva.quarto:
@@ -276,15 +283,15 @@ class Hotel:
             # Configurações de tolerância e horários
         cfg_noshow = self._settings.get("tolerancia_no_show", {})
         minutos_tolerancia = int(cfg_noshow.get("minutos", 120))
-        cfg_horarios = self._settings.get("entrada_e_saida", {})
-        hora_str = cfg_horarios.get("checkIn_a_partir", "14:00")
-        h, m = map(int, hora_str.split(":"))
+        hora_str = cfg_noshow["horario_referencia"]
+        h, m = map(int, hora_str.split(":"))    
         reservas_confirmadas = data.listar_reservas(status="CONFIRMADA")
         noshows_processados: list[int] = []
 
         for reserva in reservas_confirmadas:
             horario_previsto = datetime.combine(reserva.data_entrada, time(h, m))
             horario_limite = horario_previsto + timedelta(minutes=minutos_tolerancia)
+
             if momento_atual > horario_limite:
                 reserva.marcar_noshow()
                 data.salvar_reserva(reserva)

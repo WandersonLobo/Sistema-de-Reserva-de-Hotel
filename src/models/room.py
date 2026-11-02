@@ -208,13 +208,21 @@ class Quarto(Serializavel, ABC):
 
         tipo_raw = str(dados.get("tipo", TipoQuarto.SIMPLES.value)).upper()
         if tipo_raw == TipoQuarto.SIMPLES.value:
-            return QuartoSimples.from_dict(dados)
+            quarto = QuartoSimples.from_dict(dados)
         elif tipo_raw == TipoQuarto.DUPLO.value:
-            return QuartoDuplo.from_dict(dados)
+            quarto = QuartoDuplo.from_dict(dados)
         elif tipo_raw == TipoQuarto.LUXO.value:
-            return QuartoLuxo.from_dict(dados)
+            quarto = QuartoLuxo.from_dict(dados)
         else:
             raise DadosInvalidosException(f"Tipo de quarto desconhecido: '{tipo_raw}'.")
+
+        # Restaura o período salvo para que a disponibilidade considere a manutenção.
+        quarto._motivo_manutencao = dados.get("motivo_manutencao")
+        inicio = dados.get("inicio_manutencao")
+        fim = dados.get("fim_manutencao")
+        quarto._inicio_manutencao = date.fromisoformat(inicio) if isinstance(inicio, str) else inicio
+        quarto._fim_manutencao = date.fromisoformat(fim) if isinstance(fim, str) else fim
+        return quarto
 
     def __str__(self) -> str:
         """Retorna uma representação textual amigável do quarto."""
