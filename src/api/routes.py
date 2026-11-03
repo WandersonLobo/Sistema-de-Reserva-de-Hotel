@@ -5,7 +5,7 @@ import logging
 from sqlite3 import IntegrityError
 from typing import NoReturn, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from src.models.enums import MetodoPagamento, OrigemReserva, StatusReserva, TipoQuarto
@@ -40,15 +40,19 @@ class HospedeIn(BaseModel):
     preferencias: str = ""
 
 
-class QuartoIn(BaseModel):
-    """Dados necessários para cadastrar um novo quarto."""
-    numero: int = Field(gt=0)
+class QuartoAtualizacaoIn(BaseModel):
+    """Dados editáveis; número, estado e manutenção têm operações próprias."""
     tipo: TipoQuarto
     capacidade: int = Field(ge=1)
     tarifa_base: float = Field(gt=0, allow_inf_nan=False)
     tem_varanda: bool = False
     tem_hidromassagem: bool = False
     taxa_servico_adicional: float = Field(default=0.0, ge=0, allow_inf_nan=False)
+
+
+class QuartoIn(QuartoAtualizacaoIn):
+    """Dados necessários para cadastrar um novo quarto."""
+    numero: int = Field(gt=0)
 
 
 class BloqueioIn(BaseModel):
@@ -179,6 +183,56 @@ def buscar_quartos_disponiveis(
         _tratar_excecao(exc)
 
 
+@router.get("/quartos", tags=["Quartos"])
+def listar_quartos() -> list[dict]:
+    """Lista todos os quartos, incluindo os ocupados, bloqueados e em manutenção."""
+    try:
+        return [quarto.to_dict() for quarto in data.listar_quartos()]
+    except Exception as exc:
+        _tratar_excecao(exc)
+
+
+@router.get("/quartos/{numero}", tags=["Quartos"])
+def consultar_quarto(numero: int) -> dict:
+    """Consulta o cadastro de um quarto pelo número."""
+    try:
+        quarto = data.buscar_quarto(numero)
+        if quarto is None:
+            raise HTTPException(status_code=404, detail="Quarto não encontrado.")
+        return quarto.to_dict()
+    except Exception as exc:
+        _tratar_excecao(exc)
+
+
+@router.put("/quartos/{numero}", tags=["Quartos"])
+def atualizar_quarto(numero: int, payload: QuartoAtualizacaoIn) -> dict:
+    """Substitui os dados cadastrais preservando número, estado e manutenção."""
+    try:
+        if data.buscar_quarto(numero) is None:
+            raise HTTPException(status_code=404, detail="Quarto não encontrado.")
+        quarto = _hotel.atualizar_quarto(
+            numero=numero, tipo=payload.tipo, capacidade=payload.capacidade,
+            tarifa_base=payload.tarifa_base, tem_varanda=payload.tem_varanda,
+            tem_hidromassagem=payload.tem_hidromassagem,
+            taxa_servico_adicional=payload.taxa_servico_adicional,
+        )
+        return quarto.to_dict()
+    except Exception as exc:
+        _tratar_excecao(exc)
+
+
+@router.delete("/quartos/{numero}", status_code=204, tags=["Quartos"])
+def excluir_quarto(numero: int) -> Response:
+    """Exclui um quarto sem reservas; vínculos existentes retornam conflito (409)."""
+    try:
+        if data.buscar_quarto(numero) is None:
+            raise HTTPException(status_code=404, detail="Quarto não encontrado.")
+        _hotel.excluir_quarto(numero)
+        return Response(status_code=204)
+    except Exception as exc:
+        _tratar_excecao(exc)
+
+
 @router.patch("/quartos/{numero}/bloquear", tags=["Quartos"])
 def bloquear_quarto(numero: int, payload: BloqueioIn) -> dict:
     """Interdita um quarto para manutenção em um período com motivo definido."""
@@ -224,6 +278,56 @@ def cadastrar_hospede(payload: HospedeIn) -> dict:
         # O serviço salva o cadastro e atribui ao objeto o ID gerado pelo banco.
         _hotel.cadastrar_hospede(hospede)
         return hospede.to_dict()
+    except Exception as exc:
+        _tratar_excecao(exc)
+
+
+@router.get("/hospedes", tags=["Hóspedes"])
+def listar_hospedes() -> list[dict]:
+    """Lista os cadastros de hóspedes em ordem de ID."""
+    try:
+        return [hospede.to_dict() for hospede in data.listar_hospedes()]
+    except Exception as exc:
+        _tratar_excecao(exc)
+
+
+@router.get("/hospedes/{hospede_id}", tags=["Hóspedes"])
+def consultar_hospede(hospede_id: int) -> dict:
+    """Consulta o cadastro de um hóspede pelo ID."""
+    try:
+        hospede = data.buscar_hospede(hospede_id)
+        if hospede is None:
+            raise HTTPException(status_code=404, detail="Hóspede não encontrado.")
+        return hospede.to_dict()
+    except Exception as exc:
+        _tratar_excecao(exc)
+
+
+@router.put("/hospedes/{hospede_id}", tags=["Hóspedes"])
+def atualizar_hospede(hospede_id: int, payload: HospedeIn) -> dict:
+    """Substitui os dados cadastrais de um hóspede preservando seu ID."""
+    try:
+        if data.buscar_hospede(hospede_id) is None:
+            raise HTTPException(status_code=404, detail="Hóspede não encontrado.")
+        hospede = Hospede(
+            id_=hospede_id, nome=payload.nome, documento=payload.documento,
+            email=payload.email, telefone=payload.telefone,
+            preferencias=payload.preferencias,
+        )
+        _hotel.atualizar_hospede(hospede)
+        return data.buscar_hospede(hospede_id).to_dict()
+    except Exception as exc:
+        _tratar_excecao(exc)
+
+
+@router.delete("/hospedes/{hospede_id}", status_code=204, tags=["Hóspedes"])
+def excluir_hospede(hospede_id: int) -> Response:
+    """Exclui um hóspede sem reservas; vínculos existentes retornam conflito (409)."""
+    try:
+        if data.buscar_hospede(hospede_id) is None:
+            raise HTTPException(status_code=404, detail="Hóspede não encontrado.")
+        _hotel.excluir_hospede(hospede_id)
+        return Response(status_code=204)
     except Exception as exc:
         _tratar_excecao(exc)
 
@@ -360,6 +464,37 @@ def relatorio_ocupacao(inicio: date, fim: date) -> dict:
             "inicio": inicio.isoformat(),
             "fim": fim.isoformat(),
             "taxa_ocupacao": taxa,
+        }
+    except Exception as exc:
+        _tratar_excecao(exc)
+
+
+@router.get("/relatorios/adr", tags=["Relatórios"])
+def relatorio_adr(inicio: date, fim: date) -> dict:
+    """Retorna a diária média (Average Daily Rate) das hospedagens finalizadas no período."""
+    try:
+        reservas = data.listar_reservas()
+        adr = ServicoRelatorios.calcular_adr(reservas, inicio, fim)
+        return {
+            "inicio": inicio.isoformat(),
+            "fim": fim.isoformat(),
+            "adr": adr,
+        }
+    except Exception as exc:
+        _tratar_excecao(exc)
+
+
+@router.get("/relatorios/revpar", tags=["Relatórios"])
+def relatorio_revpar(inicio: date, fim: date) -> dict:
+    """Retorna a receita por quarto disponível (Revenue per Available Room) no período."""
+    try:
+        quartos = data.listar_quartos()
+        reservas = data.listar_reservas()
+        revpar = ServicoRelatorios.calcular_revpar(quartos, reservas, inicio, fim)
+        return {
+            "inicio": inicio.isoformat(),
+            "fim": fim.isoformat(),
+            "revpar": revpar,
         }
     except Exception as exc:
         _tratar_excecao(exc)

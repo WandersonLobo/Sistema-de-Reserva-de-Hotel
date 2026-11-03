@@ -182,10 +182,24 @@ def test_checkin_antecipado_e_recusado_sem_ocupar_quarto(hotel, reserva):
 ])
 def test_cancelamento_respeita_janela_e_libera_periodo(hotel, reserva, momento, multa):
     assert hotel.processar_cancelamento(reserva.id, momento) == multa
-    assert data.buscar_reserva(reserva.id).status == StatusReserva.CANCELADA
+    cancelada = data.buscar_reserva(reserva.id)
+    assert cancelada.status == StatusReserva.CANCELADA
+    assert cancelada.valor_total_devido == multa
+    assert cancelada.saldo_devedor == multa
     assert 101 in {q.numero for q in hotel.buscar_quartos_disponiveis(
         date(2026, 11, 10), date(2026, 11, 12)
     )}
+
+    if multa > 0.0:
+        pagamento = hotel.registrar_pagamento(reserva.id, multa, MetodoPagamento.PIX)
+        assert pagamento.valor == multa
+
+    quitada = data.buscar_reserva(reserva.id)
+    assert quitada.status == StatusReserva.CANCELADA
+    assert quitada.valor_total_devido == multa
+    assert quitada.total_pago == multa
+    assert quitada.saldo_devedor == 0.0
+
     with pytest.raises(TransicaoEstadoInvalidaException):
         hotel.registrar_pagamento(reserva.id, 100.0, MetodoPagamento.PIX)
 

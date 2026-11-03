@@ -346,6 +346,63 @@ def test_reserva_fluxo_checkout_e_bloqueio_saldo_devedor(hospede_padrao: Hospede
     assert quarto_simples.status == StatusQuarto.DISPONIVEL
 
 
+@pytest.mark.parametrize("horario", [
+    datetime(2026, 11, 9, 12),
+    datetime(2026, 11, 10, 13),
+    datetime(2026, 11, 10, 13, 59, 59, 999999),
+])
+def test_checkout_anterior_ao_checkin_nao_altera_reserva_ou_quarto(
+    hospede_padrao: Hospede, quarto_simples: QuartoSimples, horario: datetime
+) -> None:
+    reserva = Reserva(
+        hospede=hospede_padrao, quarto=quarto_simples,
+        data_entrada=date(2026, 11, 10), data_saida=date(2026, 11, 12),
+        valor_total_diarias=200.0,
+    )
+    reserva.confirmar()
+    reserva.realizar_checkin(datetime(2026, 11, 10, 14))
+    reserva.adicionar_pagamento(Pagamento(valor=250.0, metodo=MetodoPagamento.PIX))
+    antes = reserva.to_dict()
+
+    with pytest.raises(DadosInvalidosException, match="anterior ao check-in"):
+        reserva.realizar_checkout(horario, taxa_multa_atraso=50.0)
+
+    assert reserva.to_dict() == antes
+    assert quarto_simples.status == StatusQuarto.OCUPADO
+
+
+@pytest.mark.parametrize("horario", [
+    datetime(2026, 11, 10, 14),
+    datetime(2026, 11, 12, 12),
+])
+def test_checkout_no_checkin_ou_depois_continua_permitido(
+    hospede_padrao: Hospede, quarto_simples: QuartoSimples, horario: datetime
+) -> None:
+    reserva = Reserva(
+        hospede=hospede_padrao, quarto=quarto_simples,
+        data_entrada=date(2026, 11, 10), data_saida=date(2026, 11, 12),
+        valor_total_diarias=200.0,
+    )
+    reserva.confirmar()
+    reserva.realizar_checkin(datetime(2026, 11, 10, 14))
+    reserva.adicionar_pagamento(Pagamento(valor=200.0, metodo=MetodoPagamento.PIX))
+
+    assert reserva.realizar_checkout(horario) == 200.0
+    assert reserva.checkout_real == horario
+    assert reserva.status == StatusReserva.CHECKOUT
+    assert quarto_simples.status == StatusQuarto.DISPONIVEL
+
+
+def test_checkout_exige_registro_do_checkin_real(quarto_simples: QuartoSimples) -> None:
+    reserva = Reserva(quarto=quarto_simples, status=StatusReserva.CHECKIN)
+    antes = reserva.to_dict()
+
+    with pytest.raises(DadosInvalidosException, match="check-in real"):
+        reserva.realizar_checkout(datetime(2026, 11, 12, 12))
+
+    assert reserva.to_dict() == antes
+
+
 def test_checkout_nao_duplica_multa_quando_saldo_e_insuficiente(
     hospede_padrao: Hospede, quarto_simples: QuartoSimples
 ) -> None:

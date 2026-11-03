@@ -1,7 +1,7 @@
 # Especificação UML — Sistema de Reserva de Hotel
 
 Este documento contém o modelo conceitual, diagramas estáticos de classes individuais separados por blocos temáticos (`Models` e `Services`), diagramas dinâmicos de transição de estados e o detalhamento técnico do sistema de reservas.
-**Observação:** Os mixins `Serializavel` e `Auditoria` são referenciados neste documento também como `SerializavelMixin` e `AuditoriaMixin`, respectivamente.
+**Observação:** Os mixins `Serializavel` e `Auditoria` são referenciados neste documento também como `Serializavel` e `Auditoria`, respectivamente.
 
 ---
 
@@ -15,8 +15,8 @@ Este documento contém o modelo conceitual, diagramas estáticos de classes indi
     * [OrigemReserva](#enum-origemreserva)
     * [MetodoPagamento](#enum-metodopagamento)
   * **[1.2. Comportamentos Transversais (`src/models/mixins.py`)](#12-comportamentos-transversais-srcmodelsmixinspy)**
-    * [Classe `AuditoriaMixin`](#classe-auditoriamixin)
-    * [Classe `SerializavelMixin`](#classe-serializavelmixin)
+    * [Classe `Auditoria`](#classe-auditoriamixin)
+    * [Classe `Serializavel`](#classe-serializavelmixin)
   * **[1.3. Hierarquia de Pessoas (`src/models/person.py`)](#13-hierarquia-de-pessoas-srcmodelspessoapy)**
     * [Classe `Pessoa` (Abstrata)](#classe-pessoa)
     * [Classe `Hospede`](#classe-hospede)
@@ -174,7 +174,7 @@ Fornece rastreabilidade temporal de criação e última modificação para entid
 ```mermaid
 classDiagram
     %% Definição das Classes
-    class AuditoriaMixin {
+    class Auditoria {
         -datetime _data_criacao
         -datetime _data_atualizacao
         +data_criacao() datetime
@@ -191,7 +191,7 @@ classDiagram
     }
 
     %% Relações de Herança
-    AuditoriaMixin <|-- Reserva : Herança Múltipla (audita)
+    Auditoria <|-- Reserva : Herança Múltipla (audita)
 ```
 
 #### Classe `Serializavel`(Mixin)
@@ -235,11 +235,11 @@ classDiagram
     }
 
     %% Relações de Herança
-    SerializavelMixin <|-- Pessoa : Herda de
-    SerializavelMixin <|-- Quarto : Herda de
-    SerializavelMixin <|-- Reserva : Herda de
-    SerializavelMixin <|-- Pagamento : Herda de
-    SerializavelMixin <|-- Adicional : Herda de
+    Serializavel <|-- Pessoa : Herda de
+    Serializavel <|-- Quarto : Herda de
+    Serializavel <|-- Reserva : Herda de
+    Serializavel <|-- Pagamento : Herda de
+    Serializavel <|-- Adicional : Herda de
 ```
 
 ---
@@ -252,7 +252,7 @@ Classe base abstrata que encapsula os dados cadastrais e de identificação pess
 ```mermaid
 classDiagram
     %% Definição das Classes
-    class SerializavelMixin {
+    class Serializavel {
         +to_dict() dict
         +to_json() str
         +from_dict(dados: dict)$ Any
@@ -284,7 +284,7 @@ classDiagram
     }
 
     %% Relações de Herança
-    SerializavelMixin <|-- Pessoa : Herda de
+    Serializavel <|-- Pessoa : Herda de
     Pessoa <|-- Hospede : Especializa
 ```
 
@@ -337,7 +337,7 @@ Classe base abstrata que define a estrutura de uma acomodação, controle de man
 ```mermaid
 classDiagram
     %% Definição das Classes
-    class SerializavelMixin {
+    class Serializavel {
         +to_dict() dict
         +to_json() str
     }
@@ -385,7 +385,7 @@ classDiagram
     }
 
     %% Relações de Herança
-    SerializavelMixin <|-- Quarto : Herda de
+    Serializavel <|-- Quarto : Herda de
     Quarto <|-- QuartoSimples : Especializa
     Quarto <|-- QuartoDuplo : Especializa
     Quarto <|-- QuartoLuxo : Especializa
@@ -495,18 +495,18 @@ classDiagram
 ### 1.5. Reservas, Pagamentos e Adicionais (`src/models/reserva.py`)
 
 #### Classe `Reserva`
-Entidade central do domínio que relaciona `Hospede` e `Quarto`, gerencia o ciclo de estados da hospedagem, compõe pagamentos e consumos adicionais, e implementa herança múltipla com `AuditoriaMixin` e `SerializavelMixin`.
+Entidade central do domínio que relaciona `Hospede` e `Quarto`, gerencia o ciclo de estados da hospedagem, compõe pagamentos e consumos adicionais, e implementa herança múltipla com `Auditoria` e `Serializavel`.
 
 ```mermaid
 classDiagram
     %% Definição das Classes
-    class AuditoriaMixin {
+    class Auditoria {
         +data_criacao() datetime
         +data_atualizacao() datetime
         +registrar_alteracao() void
     }
 
-    class SerializavelMixin {
+    class Serializavel {
         +to_dict() dict
         +to_json() str
     }
@@ -578,8 +578,8 @@ classDiagram
     }
 
     %% Relações de Herança, Agregação e Composição
-    AuditoriaMixin <|-- Reserva : Herda de
-    SerializavelMixin <|-- Reserva : Herda de
+    Auditoria <|-- Reserva : Herda de
+    Serializavel <|-- Reserva : Herda de
     Reserva o-- "1" Hospede : Agrega
     Reserva o-- "1" Quarto : Aloca
     Reserva *-- "0..*" Pagamento : Compõe
@@ -592,7 +592,7 @@ Representa uma transação financeira vinculada a uma reserva para abatimento do
 ```mermaid
 classDiagram
     %% Definição das Classes
-    class SerializavelMixin {
+    class Serializavel {
         +to_dict() dict
         +to_json() str
         +from_dict(dados: dict)$ Any
@@ -626,7 +626,7 @@ classDiagram
     }
 
     %% Relações de Herança, Composição e Associação
-    SerializavelMixin <|-- Pagamento : Herda de
+    Serializavel <|-- Pagamento : Herda de
     Reserva *-- "0..*" Pagamento : Compõe
     Pagamento --> MetodoPagamento : Utiliza modalidade
 ```
@@ -637,7 +637,7 @@ Representa itens de consumo extra (frigobar, lavanderia, restaurante) lançados 
 ```mermaid
 classDiagram
     %% Definição das Classes
-    class SerializavelMixin {
+    class Serializavel {
         +to_dict() dict
         +to_json() str
         +from_dict(dados: dict)$ Any
@@ -664,7 +664,7 @@ classDiagram
     }
 
     %% Relações de Herança e Composição
-    SerializavelMixin <|-- Adicional : Herda de
+    Serializavel <|-- Adicional : Herda de
     Reserva *-- "0..*" Adicional : Compõe
 ```
 
@@ -733,22 +733,23 @@ Orquestrador central da camada de serviços que coordena o acervo de quartos, ca
 classDiagram
     %% Definição das Classes
     class Hotel {
-        -list~Quarto~ _quartos
-        -list~Hospede~ _hospedes
-        -list~Reserva~ _reservas
-        -dict _configuracoes
+        -dict _settings
         +cadastrar_quarto(quarto: Quarto) void
-        +cadastrar_hospede(hospede: Hospede) void
+        +cadastrar_hospede(hospede: Hospede) int
+        +atualizar_quarto(numero: int, tipo: TipoQuarto, capacidade: int, tarifa_base: float, tem_varanda: bool, tem_hidromassagem: bool, taxa_servico_adicional: float) Quarto
+        +excluir_quarto(numero: int) void
+        +atualizar_hospede(hospede: Hospede) void
+        +excluir_hospede(hospede_id: int) void
         +buscar_quartos_disponiveis(inicio: date, fim: date, tipo: TipoQuarto) list~Quarto~
         +criar_reserva(hospede_id: int, quarto_num: int, entrada: date, saida: date, num_hospedes: int, origem: OrigemReserva) Reserva
         +bloquear_quarto(numero: int, motivo: str, inicio: date, fim: date) void
         +desbloquear_quarto(numero: int) void
         +processar_checkin(reserva_id: int, momento: datetime) void
         +processar_checkout(reserva_id: int, momento: datetime) float
-        +processar_cancelamento(reserva_id: int) float
+        +processar_cancelamento(reserva_id: int, momento: datetime) float
         +processar_noshows(momento_atual: datetime) list~int~
-        +gerar_relatorio_ocupacao(inicio: date, fim: date) float
-        +gerar_relatorio_financeiro(inicio: date, fim: date) dict
+        +registrar_pagamento(reserva_id: int, valor: float, metodo: MetodoPagamento) Pagamento
+        +lancar_adicional(reserva_id: int, descricao: str, preco: float, quantidade: int) Adicional
     }
 
     class Quarto {
@@ -777,10 +778,10 @@ classDiagram
         +calcular_revpar(quartos: list~Quarto~, reservas: list~Reserva~, inicio: date, fim: date) float
     }
 
-    %% Relações de Agregação e Dependência
-    Hotel o-- "0..*" Quarto : Gerencia
-    Hotel o-- "0..*" Hospede : Cadastra
-    Hotel o-- "0..*" Reserva : Orquestra
+    %% Relações de Dependência e Orquestração
+    Hotel ..> Quarto : Orquestra e persiste (SQLite)
+    Hotel ..> Hospede : Cadastra e persiste (SQLite)
+    Hotel ..> Reserva : Gerencia ciclo de vida e persiste (SQLite)
     Hotel ..> CalculadoraTarifa : Utiliza para precificar
     Hotel ..> ServicoRelatorios : Utiliza para indicadores
 ```
@@ -807,7 +808,7 @@ classDiagram
     }
 
     class Hotel {
-        -dict _configuracoes
+        -dict _settings
         +criar_reserva(hospede_id: int, quarto_num: int, entrada: date, saida: date, num_hospedes: int, origem: OrigemReserva) Reserva
     }
 
@@ -835,8 +836,7 @@ classDiagram
     }
 
     class Hotel {
-        +gerar_relatorio_ocupacao(inicio: date, fim: date) float
-        +gerar_relatorio_financeiro(inicio: date, fim: date) dict
+        -dict _settings
     }
 
     class Quarto {
@@ -867,13 +867,13 @@ A rubrica avalia rigorosamente o controle de **estados válidos e transições c
 
 ```mermaid
 stateDiagram-v2
-    [*] --> PENDENTE: Criar Reserva (impede overbooking / valida capacidade)
-    
-    PENDENTE --> CONFIRMADA: Pagamento de sinal / Confirmação direta
+    [*] --> CONFIRMADA: Criar Reserva (impede overbooking / calcula tarifas)
+    [*] --> PENDENTE: Pré-reserva (opcional)
+    PENDENTE --> CONFIRMADA: Confirmação de reserva
     PENDENTE --> CANCELADA: Cancelar sem multa
     
     CONFIRMADA --> CHECKIN: Realizar Check-in (respeita janela e tolerância)
-    CONFIRMADA --> CANCELADA: Cancelamento com multa (conforme settings.json)
+    CONFIRMADA --> CANCELADA: Cancelamento com multa (se < 48h)
     CONFIRMADA --> NO_SHOW: Tolerância expirada (libera o quarto)
     
     CHECKIN --> CHECKOUT: Realizar Check-out (valida: total_pago >= total_devido)

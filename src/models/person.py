@@ -174,7 +174,10 @@ class Hospede(Pessoa):
         """Adiciona uma reserva ao histórico pessoal do hóspede."""
         if reserva is None:
             raise DadosInvalidosException("A reserva fornecida para vinculação não pode ser nula.")
-        if reserva in self._historico_reservas:
+        if any(
+            existente is reserva or (reserva.id > 0 and existente.id == reserva.id)
+            for existente in self._historico_reservas
+        ):
             raise DadosInvalidosException(f"A reserva com ID {getattr(reserva, 'id', 'desconhecido')} já consta no histórico do hóspede.")
         self._historico_reservas.append(reserva)
 
