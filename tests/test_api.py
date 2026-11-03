@@ -374,6 +374,30 @@ def test_checkout_com_divida_nao_libera_quarto_e_aceita_quitacao(cliente, reserv
     assert resposta["total_devido"] == 400.0
 
 
+@pytest.mark.parametrize("momento", ["2026-11-09T12:00:00", "2026-11-10T13:59:59"])
+def test_checkout_anterior_ao_checkin_retorna_400_e_preserva_estadia(cliente, reserva, momento):
+    caminho = f"/reservas/{reserva['id']}"
+    enviar(cliente, "POST", caminho + "/checkin", json={"momento": "2026-11-10T14:00:00"})
+    enviar(cliente, "POST", caminho + "/pagamentos", status=201,
+           json={"valor": 400.0, "metodo": "PIX"})
+
+    erro = enviar(cliente, "POST", caminho + "/checkout", status=400, json={"momento": momento})
+    assert "anterior ao check-in" in erro["detail"]
+    persistida = data.buscar_reserva(reserva["id"])
+    assert persistida.status.value == "CHECKIN"
+    assert persistida.checkin_real.isoformat() == "2026-11-10T14:00:00"
+    assert persistida.checkout_real is None
+    assert persistida.valor_total_devido == persistida.total_pago == 400.0
+    assert persistida.adicionais == []
+    assert data.buscar_quarto(901).status.value == "OCUPADO"
+
+    # A tentativa inválida não impede o encerramento posterior com data correta.
+    resposta = enviar(cliente, "POST", caminho + "/checkout",
+                      json={"momento": "2026-11-12T12:00:00"})
+    assert resposta["status"] == "CHECKOUT"
+    assert resposta["quarto"]["status"] == "DISPONIVEL"
+
+
 @pytest.mark.parametrize("momento, total", [
     ("2026-11-12T12:30:00", 400.0),
     ("2026-11-12T12:31:00", 600.0),

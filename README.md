@@ -170,8 +170,8 @@ sistema-reservas-hotel/          <-- Raiz do repositório
 │
 └── tests/                       <-- 📁 CAMADA DE TESTES AUTOMATIZADOS (pytest)
     ├── __init__.py
-    ├── test_api.py              <-- Testes HTTP de integração dos 24 endpoints da API (64 testes)
-    ├── test_models.py           <-- Testes de criação de objetos, @property e métodos especiais (20 testes)
+    ├── test_api.py              <-- Testes HTTP de integração dos 24 endpoints da API (66 testes)
+    ├── test_models.py           <-- Testes de criação de objetos, @property e métodos especiais (26 testes)
     ├── test_database.py         <-- Testes de persistência relacional e integridade SQLite (4 testes)
     ├── test_rules.py            <-- Testes de regras de negócio, disponibilidade e cancelamento (35 testes)
     ├── test_rates.py            <-- Testes de precificação dinâmica, temporadas e fins de semana (43 testes)
@@ -210,7 +210,7 @@ python main.py
 * *O banco SQLite (`hotel.db`) e o seed de 8 quartos e temporadas são carregados automaticamente na inicialização.*
 
 ### 5.3. Testes Automatizados (pytest)
-O projeto conta com **228 testes automatizados** cobrindo invariantes de domínio, persistência relacional e contratos HTTP:
+O projeto conta com **236 testes automatizados** cobrindo invariantes de domínio, persistência relacional e contratos HTTP:
 
 * **Executar toda a suíte:**
   ```bash
@@ -218,8 +218,8 @@ O projeto conta com **228 testes automatizados** cobrindo invariantes de domíni
   ```
 * **Executar suítes específicas:**
   ```bash
-  pytest tests/test_api.py       # 64 testes: CRUDs, ciclo completo de atendimento, regras e erros HTTP
-  pytest tests/test_models.py    # 20 testes: invariantes com @property, dunder methods e mixins
+  pytest tests/test_api.py       # 66 testes: CRUDs, ciclo completo de atendimento, regras e erros HTTP
+  pytest tests/test_models.py    # 26 testes: invariantes com @property, dunder methods e mixins
   pytest tests/test_database.py  # 4 testes: tabelas, conexões e integridade SQLite
   pytest tests/test_rules.py     # 35 testes: regras de negócio, disponibilidade e cancelamento
   pytest tests/test_rates.py     # 43 testes: precificação dinâmica, temporadas e fins de semana
@@ -328,7 +328,7 @@ Documento duplicado também retorna `409`; identificadores inexistentes retornam
     "momento": "2026-11-13T11:30:00"
   }
   ```
-  *Regra: Valida quitação financeira (total pago $\ge$ total devido). Em caso de atraso após 12:30, cobra diária extra. Altera status para `CHECKOUT` e libera o quarto para `DISPONIVEL`.*
+  *Regra: Exige check-in real registrado e saída em horário igual ou posterior a ele; datas anteriores retornam `400` sem encerrar a estadia. Valida quitação financeira (total pago $\ge$ total devido). Em caso de atraso após 12:30, cobra diária extra. Altera status para `CHECKOUT` e libera o quarto para `DISPONIVEL`.*
 
 #### 7. Consultar Relatórios
 * **Taxa de Ocupação (%):** `GET /relatorios/ocupacao?inicio=2026-11-01&fim=2026-11-30`

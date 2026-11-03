@@ -1,6 +1,6 @@
 # 🧪 Documentação e Cobertura de Testes Automatizados
 
-Este documento descreve a organização da suíte de testes automatizados do **Sistema de Reservas de Hotel**, implementada com o framework **pytest**. A suíte conta com **228 testes automatizados**, divididos em módulos especializados que cobrem desde invariantes de domínio e regras de negócio até persistência relacional e contratos HTTP.
+Este documento descreve a organização da suíte de testes automatizados do **Sistema de Reservas de Hotel**, implementada com o framework **pytest**. A suíte conta com **236 testes automatizados**, divididos em módulos especializados que cobrem desde invariantes de domínio e regras de negócio até persistência relacional e contratos HTTP.
 
 ---
 
@@ -13,24 +13,25 @@ pytest -v
 
 | Diretório de teste | Qtd. Testes | Escopo Principal |
 | :--- | :---: | :--- |
-| [`tests/test_models.py`](../tests/test_models.py) | **20** | Invariantes de entidades, validações com `@property`, métodos especiais e mixins. |
+| [`tests/test_models.py`](../tests/test_models.py) | **26** | Invariantes de entidades, validações com `@property`, métodos especiais e mixins. |
 | [`tests/test_rates.py`](../tests/test_rates.py) | **43** | Precificação dinâmica, funções puras, temporadas, fins de semana e polimorfismo. |
 | [`tests/test_rules.py`](../tests/test_rules.py) | **35** | Regras de negócio, ciclo de vida da reserva, tolerâncias, cancelamento e no-show. |
 | [`tests/test_reports.py`](../tests/test_reports.py) | **62** | Precisão estatística dos indicadores gerenciais (Taxa de Ocupação, ADR e RevPAR). |
 | [`tests/test_database.py`](../tests/test_database.py) | **4** | Inicialização do SQLite, integridade referencial, constraints e serialização JSON. |
-| [`tests/test_api.py`](../tests/test_api.py) | **64** | Integração HTTP dos 24 endpoints FastAPI, CRUDs, schemas Pydantic e códigos de status. |
-| **Total Consolidado** | **228** | **Suíte completa de validação contínua (CI/CD)** |
+| [`tests/test_api.py`](../tests/test_api.py) | **66** | Integração HTTP dos 24 endpoints FastAPI, CRUDs, schemas Pydantic e códigos de status. |
+| **Total Consolidado** | **236** | **Suíte completa de validação contínua (CI/CD)** |
 
 ---
 
 ## 🔍 Principais testes
 
-### 1. `tests/test_models.py` (20 testes)
+### 1. `tests/test_models.py` (26 testes)
 Valida a camada de domínio puro (`src/models/`), garantindo encapsulamento rígido e contratos de orientação a objetos:
 * **Validação de Hóspede e Pessoa:** Testa criação correta, rejeição de e-mail com formato inválido por regex (`DadosInvalidosException`), bloqueio de nomes/documentos vazios e cópia defensiva da lista de histórico de reservas.
 * **Hierarquia e Polimorfismo de Quartos:** Valida restrições de tarifa positiva e capacidade mínima ($\ge 1$), cálculo com acréscimo de varanda em `QuartoDuplo`, cálculo com taxa de serviço em `QuartoLuxo`, e métodos operacionais de interdição e liberação de manutenção (`bloquear_manutencao` e `liberar_manutencao`).
 * **Pagamentos e Adicionais:** Validação de métodos permitidos (`MetodoPagamento`), bloqueio de quantias negativas e cálculo do montante total por item (`preco_unitario * quantidade`).
 * **Invariantes e Máquina de Estados em Reserva:** Validação de data de entrada anterior à de saída, barramento de quantidade de hóspedes superior à capacidade do quarto (`CapacidadeExcedidaException`), e transições de estado controladas.
+* **Cronologia do Check-out:** Rejeita saída anterior ao check-in real e ausência desse registro, sem alterar reserva, quarto, auditoria ou adicionais. Aceita horário igual ou posterior ao check-in quando o pagamento está quitado.
 * **Métodos Especiais (*Dunder Methods*):**
   * `Reserva.__len__`: Retorna o número exato de diárias.
   * `Reserva.__eq__`: Compara igualdade de alocação por quarto e período.
@@ -78,11 +79,12 @@ Valida a camada de infraestrutura e persistência relacional (`src/database/`):
 
 ---
 
-### 6. `tests/test_api.py` (64 testes)
+### 6. `tests/test_api.py` (66 testes)
 Testa os contratos de interface REST expostos pela API FastAPI (`src/api/routes.py`):
 * **CRUDs de Quartos e Hóspedes:** Criação, listagem, consulta individual, atualização e exclusão persistidas no SQLite. Verifica exclusão com resposta `204` sem corpo, identificadores inexistentes (`404`) e documento duplicado (`409`).
 * **Preservação de Vínculos:** Impede exclusão de cadastros com reservas e redução de capacidade que inviabilize reservas existentes, incluindo históricas. Edições preservam o estado do quarto, os dados de manutenção e os valores de diárias já contratados.
 * **Atualizações Inválidas:** Garante que dados cadastrais inválidos sejam recusados sem alterar os dados persistidos.
+* **Check-out Anterior ao Check-in:** Retorna `400` tanto para dia anterior quanto para horário anterior no mesmo dia, preserva a estadia e os valores salvos e permite uma nova tentativa com data correta.
 * **Ciclo de Atendimento Completo (`test_fluxo_completo_de_atendimento`):** Executa o fluxo de ponta a ponta: cadastro de quarto e hóspede $\rightarrow$ bloqueio/desbloqueio $\rightarrow$ criação de reserva $\rightarrow$ check-in $\rightarrow$ adicionais $\rightarrow$ pagamento $\rightarrow$ check-out $\rightarrow$ relatórios (Ocupação, ADR, RevPAR e Financeiro) $\rightarrow$ cancelamento com multa e varredura de no-show.
 * **Validação de Schemas Pydantic (HTTP 422):** Testa rejeição de dados obrigatórios ausentes, tipos incompatíveis e valores inválidos (ex.: capacidade zero, método de pagamento inexistente).
 * **Tratamento Semântico de Erros:**

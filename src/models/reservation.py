@@ -327,13 +327,18 @@ class Reserva(Auditoria, Serializavel):
     ) -> float:
         """Finaliza a estadia, garantindo quitação financeira e liberando o quarto.
 
-        Conforme os requisitos essenciais, o check-out só é permitido se
-        `total_pago >= total_devido`.
+        Exige check-in real registrado, horário de saída não anterior à entrada
+        real e `total_pago >= total_devido`.
         """
         if self._status != StatusReserva.CHECKIN:
             raise TransicaoEstadoInvalidaException(
                 f"Check-out permitido apenas para reservas em CHECKIN. Status atual: '{self._status.value}'."
             )
+
+        if self._checkin_real is None:
+            raise DadosInvalidosException("O check-out exige um check-in real registrado.")
+        if horario < self._checkin_real:
+            raise DadosInvalidosException("O horário de check-out não pode ser anterior ao check-in real.")
 
         multa_aplicavel = max(0.0, taxa_multa_atraso)
         total_devido_com_multa = self.valor_total_devido + multa_aplicavel

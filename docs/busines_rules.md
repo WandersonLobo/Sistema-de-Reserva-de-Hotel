@@ -63,6 +63,7 @@ Linha do Tempo (Dia de Entrada):
 ---
 
 ### 2.5. Check-out, Quitação e Atrasos
+* **Cronologia:** Exige check-in real registrado. O horário do check-out deve ser igual ou posterior ao check-in real; saída anterior gera `DadosInvalidosException` (`400` na API), sem alterar a reserva, os valores financeiros ou o estado do quarto.
 * **Horário Limite:** Até às `12:00` da data de saída (tolerância sem acréscimo até às `12:30`).
 * **Taxa de Atraso:** Saídas após as `12:30` acarretam a cobrança de 1 diária extra na conta.
 * **Quitação Obrigatória:** Check-out bloqueado se $\text{total pago} < \text{total devido}$.
