@@ -184,7 +184,7 @@ sistema-reservas-hotel/          <-- Raiz do repositório
 ### 5.1. Instalação e Ambiente
 1. Clone o repositório e acesse a pasta raiz:
    ```bash
-   git clone <url-do-repositorio>
+   git clone gh repo clone WandersonLobo/Sistema-de-Reserva-de-Hotel
    cd Sistema-de-Reserva-de-Hotel
    ```
 2. Crie e ative um ambiente virtual (recomendado):

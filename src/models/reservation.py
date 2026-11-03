@@ -1,6 +1,7 @@
 
 from __future__ import annotations
 from datetime import date, datetime, timedelta
+from math import isfinite
 from typing import Any, Dict, List, Optional
 
 
@@ -244,7 +245,9 @@ class Reserva(Auditoria, Serializavel):
 
     @property
     def valor_total_devido(self) -> float:
-        """Calcula a conta global da reserva (diárias + adicionais)."""
+        """Calcula a conta; no cancelamento, as diárias contratadas não são cobradas."""
+        if self._status == StatusReserva.CANCELADA:
+            return self.total_adicionais
         return round(self._valor_total_diarias + self.total_adicionais, 2)
 
     @property
@@ -268,7 +271,9 @@ class Reserva(Auditoria, Serializavel):
         if pagamento is None:
             raise DadosInvalidosException("O pagamento a ser adicionado não pode ser nulo.")
 
-        if self._status in (StatusReserva.CANCELADA, StatusReserva.NO_SHOW):
+        if self._status == StatusReserva.NO_SHOW or (
+            self._status == StatusReserva.CANCELADA and self.saldo_devedor <= 0.0
+        ):
             raise TransicaoEstadoInvalidaException(
                 f"Não é permitido lançar pagamentos em reserva com status '{self._status.value}'."
             )
@@ -377,15 +382,30 @@ class Reserva(Auditoria, Serializavel):
                 f"Status atual: '{self._status.value}'."
             )
 
+        try:
+            multa = float(taxa_multa)
+        except (TypeError, ValueError) as erro:
+            raise DadosInvalidosException("A multa de cancelamento deve ser um número válido.") from erro
+        if not isfinite(multa) or multa < 0.0:
+            raise DadosInvalidosException("A multa de cancelamento deve ser finita e não negativa.")
+        multa = round(multa, 2)
+        if multa > 0.0:
+            self._adicionais.append(Adicional(
+                id_=len(self._adicionais) + 1,
+                descricao="Multa de cancelamento",
+                preco_unitario=multa,
+                quantidade=1,
+            ))
+
         self._status = StatusReserva.CANCELADA
         if self._quarto is not None and self._quarto.status == StatusQuarto.OCUPADO:
             self._quarto.status = StatusQuarto.DISPONIVEL
 
         self.registrar_alteracao()
-        return round(float(taxa_multa), 2)
+        return multa
 
     def marcar_noshow(self) -> None:
-        """Registra o não comparecimento do hóspede (`NO_SHOW`) e libera o quarto."""
+        """Libera a alocação da reserva sem alterar o estado operacional do quarto."""
         if self._status != StatusReserva.CONFIRMADA:
             raise TransicaoEstadoInvalidaException(
                 f"Marcação de NO_SHOW permitida apenas para reservas CONFIRMADAS. "
@@ -393,8 +413,6 @@ class Reserva(Auditoria, Serializavel):
             )
 
         self._status = StatusReserva.NO_SHOW
-        if self._quarto is not None:
-            self._quarto.status = StatusQuarto.DISPONIVEL
 
         self.registrar_alteracao()
 
