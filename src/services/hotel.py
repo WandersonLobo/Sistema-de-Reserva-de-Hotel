@@ -228,6 +228,7 @@ class Hotel:
         )
         novo_id = data.salvar_reserva(reserva)
         reserva.id = novo_id
+        hospede.vincular_reserva(reserva)
         return reserva
 
     def processar_checkin(self, reserva_id: int, momento: datetime) -> None:

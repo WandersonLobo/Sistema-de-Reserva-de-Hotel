@@ -315,7 +315,7 @@ def atualizar_hospede(hospede_id: int, payload: HospedeIn) -> dict:
             preferencias=payload.preferencias,
         )
         _hotel.atualizar_hospede(hospede)
-        return hospede.to_dict()
+        return data.buscar_hospede(hospede_id).to_dict()
     except Exception as exc:
         _tratar_excecao(exc)
 
