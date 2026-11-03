@@ -365,6 +365,37 @@ def relatorio_ocupacao(inicio: date, fim: date) -> dict:
         _tratar_excecao(exc)
 
 
+@router.get("/relatorios/adr", tags=["Relatórios"])
+def relatorio_adr(inicio: date, fim: date) -> dict:
+    """Retorna a diária média (Average Daily Rate) das hospedagens finalizadas no período."""
+    try:
+        reservas = data.listar_reservas()
+        adr = ServicoRelatorios.calcular_adr(reservas, inicio, fim)
+        return {
+            "inicio": inicio.isoformat(),
+            "fim": fim.isoformat(),
+            "adr": adr,
+        }
+    except Exception as exc:
+        _tratar_excecao(exc)
+
+
+@router.get("/relatorios/revpar", tags=["Relatórios"])
+def relatorio_revpar(inicio: date, fim: date) -> dict:
+    """Retorna a receita por quarto disponível (Revenue per Available Room) no período."""
+    try:
+        quartos = data.listar_quartos()
+        reservas = data.listar_reservas()
+        revpar = ServicoRelatorios.calcular_revpar(quartos, reservas, inicio, fim)
+        return {
+            "inicio": inicio.isoformat(),
+            "fim": fim.isoformat(),
+            "revpar": revpar,
+        }
+    except Exception as exc:
+        _tratar_excecao(exc)
+
+
 @router.get("/relatorios/financeiro", tags=["Relatórios"])
 def relatorio_financeiro(inicio: date, fim: date) -> dict:
     """Soma o total devido das reservas com check-out real no intervalo [inicio, fim)."""

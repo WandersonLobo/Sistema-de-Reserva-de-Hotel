@@ -166,16 +166,16 @@ sistema-reservas-hotel/          <-- Raiz do repositório
 │   └── api/                     <-- 📁 CAMADA DE INTERFACE E COMUNICAÇÃO (FastAPI)
 │       ├── __init__.py
 │       ├── app.py               <-- Instância principal do servidor FastAPI e ciclo de vida (lifespan)
-│       └── routes.py            <-- Definição dos endpoints HTTP e Schemas de validação Pydantic
+│       └── routes.py            <-- Definição dos 16 endpoints HTTP e Schemas de validação Pydantic
 │
 └── tests/                       <-- 📁 CAMADA DE TESTES AUTOMATIZADOS (pytest)
     ├── __init__.py
-    ├── test_api.py              <-- Testes HTTP de integração de todos os 14 endpoints da API (38 testes)
+    ├── test_api.py              <-- Testes HTTP de integração de todos os 16 endpoints da API (41 testes)
     ├── test_models.py           <-- Testes de criação de objetos, @property e métodos especiais (20 testes)
     ├── test_database.py         <-- Testes de persistência relacional e integridade SQLite (4 testes)
     ├── test_rules.py            <-- Testes de regras de negócio, disponibilidade e cancelamento (35 testes)
     ├── test_rates.py            <-- Testes de precificação dinâmica, temporadas e fins de semana (43 testes)
-    └── test_reports.py          <-- Testes de precisão dos cálculos de Ocupação, ADR e RevPAR (63 testes)
+    └── test_reports.py          <-- Testes de precisão dos cálculos de Ocupação, ADR e RevPAR (62 testes)
 ```
 
 ---
@@ -210,7 +210,7 @@ python main.py
 * *O banco SQLite (`hotel.db`) e o seed de 8 quartos e temporadas são carregados automaticamente na inicialização.*
 
 ### 5.3. Testes Automatizados (pytest)
-O projeto conta com **203 testes automatizados** cobrindo invariantes de domínio, persistência relacional e contratos HTTP:
+O projeto conta com **205 testes automatizados** cobrindo invariantes de domínio, persistência relacional e contratos HTTP:
 
 * **Executar toda a suíte:**
   ```bash
@@ -218,12 +218,12 @@ O projeto conta com **203 testes automatizados** cobrindo invariantes de domíni
   ```
 * **Executar suítes específicas:**
   ```bash
-  pytest tests/test_api.py       # 38 testes: ciclo completo de atendimento, regras e erros HTTP
+  pytest tests/test_api.py       # 41 testes: ciclo completo de atendimento, regras e erros HTTP
   pytest tests/test_models.py    # 20 testes: invariantes com @property, dunder methods e mixins
   pytest tests/test_database.py  # 4 testes: tabelas, conexões e integridade SQLite
   pytest tests/test_rules.py     # 35 testes: regras de negócio, disponibilidade e cancelamento
   pytest tests/test_rates.py     # 43 testes: precificação dinâmica, temporadas e fins de semana
-  pytest tests/test_reports.py   # 63 testes: precisão de Ocupação, ADR e RevPAR
+  pytest tests/test_reports.py   # 62 testes: precisão de Ocupação, ADR e RevPAR
   ```
 
 ### 5.4. Exemplos Principais de Uso da API
@@ -298,6 +298,8 @@ Os endpoints podem ser consumidos via HTTP ou diretamente pela interface Swagger
 
 #### 7. Consultar Relatórios
 * **Taxa de Ocupação (%):** `GET /relatorios/ocupacao?inicio=2026-11-01&fim=2026-11-30`
+* **ADR (Average Daily Rate):** `GET /relatorios/adr?inicio=2026-11-01&fim=2026-11-30`
+* **RevPAR (Revenue per Available Room):** `GET /relatorios/revpar?inicio=2026-11-01&fim=2026-11-30`
 * **Receita Financeira:** `GET /relatorios/financeiro?inicio=2026-11-01&fim=2026-11-30`
 
 ---

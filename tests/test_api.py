@@ -85,7 +85,7 @@ def numeros_disponiveis(cliente, **alteracoes):
 
 
 # =========================================================================
-# Percorre os 14 endpoints da aplicação
+# Percorre os endpoints da aplicação
 # =========================================================================
 
 def test_fluxo_completo_de_atendimento_percorre_todos_os_endpoints(cliente):
@@ -145,6 +145,12 @@ def test_fluxo_completo_de_atendimento_percorre_todos_os_endpoints(cliente):
                       params={"inicio": "2026-11-10", "fim": "2026-11-12"})
     # O seed cria oito quartos; com o novo quarto, duas noites em 18 possíveis.
     assert ocupacao["taxa_ocupacao"] == pytest.approx(11.11)
+    adr = enviar(cliente, "GET", "/relatorios/adr",
+                 params={"inicio": "2026-11-10", "fim": "2026-11-12"})
+    assert adr["adr"] == 200.0
+    revpar = enviar(cliente, "GET", "/relatorios/revpar",
+                    params={"inicio": "2026-11-10", "fim": "2026-11-12"})
+    assert revpar["revpar"] == pytest.approx(22.22)
     financeiro = enviar(cliente, "GET", "/relatorios/financeiro",
                         params={"inicio": "2026-11-12", "fim": "2026-11-13"})
     assert financeiro["receita_total"] == 420.0
@@ -396,7 +402,7 @@ def test_entradas_invalidas_retornam_422_sem_alterar_reserva(cliente, reserva, o
     assert persistida.pagamentos == persistida.adicionais == []
 
 
-@pytest.mark.parametrize("relatorio", ["ocupacao", "financeiro"])
+@pytest.mark.parametrize("relatorio", ["ocupacao", "adr", "revpar", "financeiro"])
 def test_relatorios_rejeitam_periodos_invalidos(cliente, relatorio):
     enviar(cliente, "GET", f"/relatorios/{relatorio}", status=400,
            params={"inicio": "2026-11-12", "fim": "2026-11-10"})

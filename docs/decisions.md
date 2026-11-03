@@ -1,4 +1,4 @@
-# 📐 Registro de Decisões de Arquitetura e Engenharia (Decisions)
+# 📐 Registro de Decisões de Arquitetura e Engenharia 
 
 Este documento registra as principais decisões técnicas, escolhas de design orientado a objetos, ferramentas de automação e metodologia de desenvolvimento adotadas no **Sistema de Reservas de Hotel**.
 
