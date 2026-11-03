@@ -1,6 +1,6 @@
 # 🧪 Documentação e Cobertura de Testes Automatizados
 
-Este documento descreve a organização da suíte de testes automatizados do **Sistema de Reservas de Hotel**, implementada com o framework **pytest**. A suíte conta com **205 testes automatizados**, divididos em módulos especializados que cobrem desde invariantes de domínio e regras de negócio até persistência relacional e contratos HTTP.
+Este documento descreve a organização da suíte de testes automatizados do **Sistema de Reservas de Hotel**, implementada com o framework **pytest**. A suíte conta com **228 testes automatizados**, divididos em módulos especializados que cobrem desde invariantes de domínio e regras de negócio até persistência relacional e contratos HTTP.
 
 ---
 
@@ -18,8 +18,8 @@ pytest -v
 | [`tests/test_rules.py`](../tests/test_rules.py) | **35** | Regras de negócio, ciclo de vida da reserva, tolerâncias, cancelamento e no-show. |
 | [`tests/test_reports.py`](../tests/test_reports.py) | **62** | Precisão estatística dos indicadores gerenciais (Taxa de Ocupação, ADR e RevPAR). |
 | [`tests/test_database.py`](../tests/test_database.py) | **4** | Inicialização do SQLite, integridade referencial, constraints e serialização JSON. |
-| [`tests/test_api.py`](../tests/test_api.py) | **41** | Integração HTTP dos 16 endpoints FastAPI, schemas Pydantic e códigos de status. |
-| **Total Consolidado** | **205** | **Suíte completa de validação contínua (CI/CD)** |
+| [`tests/test_api.py`](../tests/test_api.py) | **64** | Integração HTTP dos 24 endpoints FastAPI, CRUDs, schemas Pydantic e códigos de status. |
+| **Total Consolidado** | **228** | **Suíte completa de validação contínua (CI/CD)** |
 
 ---
 
@@ -78,8 +78,11 @@ Valida a camada de infraestrutura e persistência relacional (`src/database/`):
 
 ---
 
-### 6. `tests/test_api.py` (41 testes)
+### 6. `tests/test_api.py` (64 testes)
 Testa os contratos de interface REST expostos pela API FastAPI (`src/api/routes.py`):
+* **CRUDs de Quartos e Hóspedes:** Criação, listagem, consulta individual, atualização e exclusão persistidas no SQLite. Verifica exclusão com resposta `204` sem corpo, identificadores inexistentes (`404`) e documento duplicado (`409`).
+* **Preservação de Vínculos:** Impede exclusão de cadastros com reservas e redução de capacidade que inviabilize reservas existentes, incluindo históricas. Edições preservam o estado do quarto, os dados de manutenção e os valores de diárias já contratados.
+* **Atualizações Inválidas:** Garante que dados cadastrais inválidos sejam recusados sem alterar os dados persistidos.
 * **Ciclo de Atendimento Completo (`test_fluxo_completo_de_atendimento`):** Executa o fluxo de ponta a ponta: cadastro de quarto e hóspede $\rightarrow$ bloqueio/desbloqueio $\rightarrow$ criação de reserva $\rightarrow$ check-in $\rightarrow$ adicionais $\rightarrow$ pagamento $\rightarrow$ check-out $\rightarrow$ relatórios (Ocupação, ADR, RevPAR e Financeiro) $\rightarrow$ cancelamento com multa e varredura de no-show.
 * **Validação de Schemas Pydantic (HTTP 422):** Testa rejeição de dados obrigatórios ausentes, tipos incompatíveis e valores inválidos (ex.: capacidade zero, método de pagamento inexistente).
 * **Tratamento Semântico de Erros:**

@@ -85,6 +85,175 @@ def numeros_disponiveis(cliente, **alteracoes):
 
 
 # =========================================================================
+# CRUDs de quartos e hóspedes
+# =========================================================================
+
+def test_crud_quarto_persiste_alteracoes_e_exclusao(cliente):
+    quarto = cadastrar_quarto(cliente)
+    assert enviar(cliente, "GET", "/quartos/901") == quarto
+    assert [q["numero"] for q in enviar(cliente, "GET", "/quartos")] == [
+        101, 102, 103, 201, 202, 203, 301, 302, 901,
+    ]
+
+    atualizado = enviar(cliente, "PUT", "/quartos/901", json={
+        "tipo": "LUXO", "capacidade": 4, "tarifa_base": 500.0,
+        "tem_hidromassagem": True, "taxa_servico_adicional": 50.0,
+    })
+    assert atualizado["numero"] == 901
+    assert atualizado["tipo"] == "LUXO"
+    assert atualizado["capacidade"] == 4
+    assert atualizado["tem_hidromassagem"] is True
+    assert data.buscar_quarto(901).calcular_diaria() == 550.0
+    assert enviar(cliente, "GET", "/quartos/901") == atualizado
+
+    # A troca de categoria não carrega atributos exclusivos do tipo anterior.
+    simples = enviar(cliente, "PUT", "/quartos/901", json={
+        "tipo": "SIMPLES", "capacidade": 1, "tarifa_base": 150.0,
+    })
+    assert "tem_hidromassagem" not in simples
+    assert "taxa_servico_adicional" not in simples
+    assert data.buscar_quarto(901).calcular_diaria() == 150.0
+
+    resposta = cliente.delete("/quartos/901")
+    assert resposta.status_code == 204
+    assert resposta.content == b""
+    assert data.buscar_quarto(901) is None
+    enviar(cliente, "GET", "/quartos/901", status=404)
+    assert 901 not in {q["numero"] for q in enviar(cliente, "GET", "/quartos")}
+
+
+def test_crud_hospede_persiste_alteracoes_sem_duplicar_cadastro(cliente):
+    assert enviar(cliente, "GET", "/hospedes") == []
+    hospede = cadastrar_hospede(cliente)
+    caminho = f"/hospedes/{hospede['id']}"
+    assert enviar(cliente, "GET", caminho) == hospede
+
+    dados = {
+        "nome": "Maria Souza", "documento": "987654321",
+        "email": "maria.souza@example.com", "telefone": "88988888888",
+        "preferencias": "Andar alto",
+    }
+    atualizado = enviar(cliente, "PUT", caminho, json=dados)
+    assert atualizado["id"] == hospede["id"]
+    for campo, valor in dados.items():
+        assert atualizado[campo] == valor
+    assert enviar(cliente, "GET", caminho) == atualizado
+    assert enviar(cliente, "GET", "/hospedes") == [atualizado]
+    assert data.buscar_hospede(hospede["id"]).documento == dados["documento"]
+
+    resposta = cliente.delete(caminho)
+    assert resposta.status_code == 204
+    assert resposta.content == b""
+    assert data.buscar_hospede(hospede["id"]) is None
+    enviar(cliente, "GET", caminho, status=404)
+    assert enviar(cliente, "GET", "/hospedes") == []
+
+
+def test_edicao_de_quarto_preserva_manutencao_e_listagem_inclui_bloqueados(cliente):
+    cadastrar_quarto(cliente)
+    bloqueado = enviar(cliente, "PATCH", "/quartos/901/bloquear", json={
+        "motivo": "Pintura", "inicio": "2026-11-10", "fim": "2026-11-12",
+    })
+    atualizado = enviar(cliente, "PUT", "/quartos/901", json={
+        "tipo": "DUPLO", "capacidade": 2, "tarifa_base": 300.0, "tem_varanda": True,
+    })
+    for campo in ("status", "motivo_manutencao", "inicio_manutencao", "fim_manutencao"):
+        assert atualizado[campo] == bloqueado[campo]
+    assert atualizado in enviar(cliente, "GET", "/quartos")
+    assert 901 not in numeros_disponiveis(cliente)
+    assert data.buscar_quarto(901).calcular_diaria() == 345.0
+
+
+def test_edicao_de_cadastros_preserva_reserva_em_estadia_e_valor_contratado(cliente, reserva):
+    reserva_id = reserva["id"]
+    hospede_id = reserva["hospede"]["id"]
+    enviar(cliente, "POST", f"/reservas/{reserva_id}/checkin",
+           json={"momento": "2026-11-10T14:00:00"})
+    atualizado = enviar(cliente, "PUT", "/quartos/901", json={
+        "tipo": "SIMPLES", "capacidade": 3, "tarifa_base": 500.0,
+    })
+    assert atualizado["status"] == "OCUPADO"
+    enviar(cliente, "PUT", f"/hospedes/{hospede_id}", json={
+        "nome": "Maria Souza", "documento": "987654321",
+        "email": "maria.souza@example.com", "telefone": "88988888888",
+    })
+    recuperada = data.buscar_reserva(reserva_id)
+    assert recuperada.status.value == "CHECKIN"
+    assert recuperada.quarto.tarifa_base == 500.0
+    assert recuperada.valor_total_diarias == reserva["valor_total_diarias"] == 400.0
+    assert recuperada.hospede.id == hospede_id
+    assert recuperada.hospede.nome == "Maria Souza"
+    assert len(data.listar_reservas()) == len(data.listar_hospedes()) == 1
+
+
+@pytest.mark.parametrize("estado", ["CONFIRMADA", "CANCELADA", "NO_SHOW", "CHECKOUT"])
+def test_exclusao_e_reducao_de_capacidade_preservam_reservas_vinculadas(cliente, reserva, estado):
+    # Prepara estados históricos sem depender dos fluxos financeiros ou de no-show.
+    conexao = data.obter_conexao()
+    try:
+        with conexao:
+            conexao.execute("UPDATE reservas SET status = ? WHERE id = ?", (estado, reserva["id"]))
+    finally:
+        conexao.close()
+
+    original = enviar(cliente, "GET", "/quartos/901")
+    enviar(cliente, "PUT", "/quartos/901", status=400, json={
+        "tipo": "SIMPLES", "capacidade": 1, "tarifa_base": 250.0,
+    })
+    enviar(cliente, "DELETE", "/quartos/901", status=409)
+    enviar(cliente, "DELETE", f"/hospedes/{reserva['hospede']['id']}", status=409)
+    assert enviar(cliente, "GET", "/quartos/901") == original
+    assert data.buscar_reserva(reserva["id"]).status.value == estado
+    assert data.buscar_hospede(reserva["hospede"]["id"]) is not None
+
+
+def test_edicao_com_documento_duplicado_retorna_conflito_sem_alterar_hospedes(cliente):
+    primeiro = cadastrar_hospede(cliente)
+    segundo = cadastrar_hospede(cliente, documento="987654321")
+    enviar(cliente, "PUT", f"/hospedes/{segundo['id']}", status=409, json={
+        "nome": "Outro nome", "documento": primeiro["documento"],
+        "email": "outro@example.com", "telefone": "88988888888",
+    })
+    assert enviar(cliente, "GET", "/hospedes") == [primeiro, segundo]
+
+
+@pytest.mark.parametrize("recurso, dados", [
+    ("quartos/999", {"tipo": "SIMPLES", "capacidade": 1, "tarifa_base": 100.0}),
+    ("hospedes/999", {"nome": "Maria", "documento": "123", "email": "m@example.com", "telefone": "88"}),
+])
+@pytest.mark.parametrize("metodo", ["GET", "PUT", "DELETE"])
+def test_cruds_retornam_404_para_identificadores_inexistentes(cliente, recurso, dados, metodo):
+    enviar(cliente, metodo, f"/{recurso}", status=404, **({"json": dados} if metodo == "PUT" else {}))
+    assert len(data.listar_quartos()) == 8
+    assert data.listar_hospedes() == []
+
+
+@pytest.mark.parametrize("alteracoes", [
+    {"capacidade": 0}, {"tarifa_base": 0}, {"tipo": "INVALIDO"},
+    {"taxa_servico_adicional": -1},
+])
+def test_edicao_de_quarto_rejeita_dados_invalidos_sem_modificar_cadastro(cliente, alteracoes):
+    original = cadastrar_quarto(cliente)
+    dados = {"tipo": "SIMPLES", "capacidade": 2, "tarifa_base": 200.0}
+    dados.update(alteracoes)
+    enviar(cliente, "PUT", "/quartos/901", status=422, json=dados)
+    assert enviar(cliente, "GET", "/quartos/901") == original
+
+
+@pytest.mark.parametrize("alteracoes, status", [
+    ({"nome": ""}, 422), ({"documento": ""}, 422),
+    ({"nome": "   "}, 400), ({"email": "invalido"}, 400),
+])
+def test_edicao_de_hospede_rejeita_dados_invalidos_sem_modificar_cadastro(cliente, alteracoes, status):
+    original = cadastrar_hospede(cliente)
+    dados = {campo: original[campo] for campo in ("nome", "documento", "email", "telefone")}
+    dados.update(alteracoes)
+    caminho = f"/hospedes/{original['id']}"
+    enviar(cliente, "PUT", caminho, status=status, json=dados)
+    assert enviar(cliente, "GET", caminho) == original
+
+
+# =========================================================================
 # Percorre os endpoints da aplicação
 # =========================================================================
 

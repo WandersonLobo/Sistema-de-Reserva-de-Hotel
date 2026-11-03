@@ -51,12 +51,23 @@ def salvar_quarto(quarto: Quarto) -> int:
         with conexao:
             conexao.execute(
                 """
-                INSERT OR REPLACE INTO quartos (
+                INSERT INTO quartos (
                     numero, tipo, capacidade, tarifa_base, status,
                     motivo_manutencao, inicio_manutencao, fim_manutencao,
                     tem_varanda, tem_hidromassagem, taxa_servico_adicional
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(numero) DO UPDATE SET
+                    tipo = excluded.tipo,
+                    capacidade = excluded.capacidade,
+                    tarifa_base = excluded.tarifa_base,
+                    status = excluded.status,
+                    motivo_manutencao = excluded.motivo_manutencao,
+                    inicio_manutencao = excluded.inicio_manutencao,
+                    fim_manutencao = excluded.fim_manutencao,
+                    tem_varanda = excluded.tem_varanda,
+                    tem_hidromassagem = excluded.tem_hidromassagem,
+                    taxa_servico_adicional = excluded.taxa_servico_adicional
                 """,
                 (
                     quarto.numero,
@@ -92,6 +103,30 @@ def buscar_quarto(numero: int) -> Optional[Quarto]:
         return _quarto_da_linha(linha) # Se encontrou, transforma a linha em um objeto Quarto e retorna
     finally:
         conexao.close()
+
+def maior_ocupacao_reservada(numero: int) -> int:
+    """Retorna a maior quantidade de hóspedes das reservas vinculadas ao quarto."""
+    conexao = obter_conexao()
+    try:
+        linha = conexao.execute(
+            "SELECT COALESCE(MAX(num_hospedes), 0) FROM reservas WHERE quarto_numero = ?",
+            (numero,),
+        ).fetchone()
+        return int(linha[0])
+    finally:
+        conexao.close()
+
+
+def excluir_quarto(numero: int) -> bool:
+    """Exclui um quarto sem reservas; a chave estrangeira protege os vínculos."""
+    conexao = obter_conexao()
+    try:
+        with conexao:
+            cursor = conexao.execute("DELETE FROM quartos WHERE numero = ?", (numero,))
+        return cursor.rowcount > 0
+    finally:
+        conexao.close()
+
 
 # Função para salvar um hóspede no banco de dados, retornando o ID gerado
 def salvar_hospede(hospede: Hospede) -> int:
@@ -141,6 +176,46 @@ def buscar_hospede(id_: int) -> Optional[Hospede]:
         return _hospede_da_linha(linha)
     finally:
         conexao.close()
+
+def listar_hospedes() -> list[Hospede]:
+    """Retorna os cadastros de hóspedes em ordem de ID."""
+    conexao = obter_conexao()
+    try:
+        linhas = conexao.execute("SELECT * FROM hospedes ORDER BY id").fetchall()
+        return [_hospede_da_linha(linha) for linha in linhas]
+    finally:
+        conexao.close()
+
+
+def atualizar_hospede(hospede: Hospede) -> bool:
+    """Atualiza um cadastro existente preservando seu ID e suas reservas."""
+    conexao = obter_conexao()
+    try:
+        with conexao:
+            cursor = conexao.execute(
+                """
+                UPDATE hospedes SET
+                    nome = ?, documento = ?, email = ?, telefone = ?, preferencias = ?
+                WHERE id = ?
+                """,
+                (hospede.nome, hospede.documento, hospede.email, hospede.telefone,
+                 hospede.preferencias, hospede.id),
+            )
+        return cursor.rowcount > 0
+    finally:
+        conexao.close()
+
+
+def excluir_hospede(id_: int) -> bool:
+    """Exclui um hóspede sem reservas; a chave estrangeira protege os vínculos."""
+    conexao = obter_conexao()
+    try:
+        with conexao:
+            cursor = conexao.execute("DELETE FROM hospedes WHERE id = ?", (id_,))
+        return cursor.rowcount > 0
+    finally:
+        conexao.close()
+
 
 # Função para listar todas as temporadas que abrangem uma data específica
 def listar_temporadas(data_referencia: date) -> list[dict]:

@@ -166,11 +166,11 @@ sistema-reservas-hotel/          <-- Raiz do repositório
 │   └── api/                     <-- 📁 CAMADA DE INTERFACE E COMUNICAÇÃO (FastAPI)
 │       ├── __init__.py
 │       ├── app.py               <-- Instância principal do servidor FastAPI e ciclo de vida (lifespan)
-│       └── routes.py            <-- Definição dos 16 endpoints HTTP e Schemas de validação Pydantic
+│       └── routes.py            <-- Definição dos 24 endpoints HTTP e Schemas de validação Pydantic
 │
 └── tests/                       <-- 📁 CAMADA DE TESTES AUTOMATIZADOS (pytest)
     ├── __init__.py
-    ├── test_api.py              <-- Testes HTTP de integração de todos os 16 endpoints da API (41 testes)
+    ├── test_api.py              <-- Testes HTTP de integração dos 24 endpoints da API (64 testes)
     ├── test_models.py           <-- Testes de criação de objetos, @property e métodos especiais (20 testes)
     ├── test_database.py         <-- Testes de persistência relacional e integridade SQLite (4 testes)
     ├── test_rules.py            <-- Testes de regras de negócio, disponibilidade e cancelamento (35 testes)
@@ -210,7 +210,7 @@ python main.py
 * *O banco SQLite (`hotel.db`) e o seed de 8 quartos e temporadas são carregados automaticamente na inicialização.*
 
 ### 5.3. Testes Automatizados (pytest)
-O projeto conta com **205 testes automatizados** cobrindo invariantes de domínio, persistência relacional e contratos HTTP:
+O projeto conta com **228 testes automatizados** cobrindo invariantes de domínio, persistência relacional e contratos HTTP:
 
 * **Executar toda a suíte:**
   ```bash
@@ -218,7 +218,7 @@ O projeto conta com **205 testes automatizados** cobrindo invariantes de domíni
   ```
 * **Executar suítes específicas:**
   ```bash
-  pytest tests/test_api.py       # 41 testes: ciclo completo de atendimento, regras e erros HTTP
+  pytest tests/test_api.py       # 64 testes: CRUDs, ciclo completo de atendimento, regras e erros HTTP
   pytest tests/test_models.py    # 20 testes: invariantes com @property, dunder methods e mixins
   pytest tests/test_database.py  # 4 testes: tabelas, conexões e integridade SQLite
   pytest tests/test_rules.py     # 35 testes: regras de negócio, disponibilidade e cancelamento
@@ -229,6 +229,40 @@ O projeto conta com **205 testes automatizados** cobrindo invariantes de domíni
 ### 5.4. Exemplos Principais de Uso da API
 
 Os endpoints podem ser consumidos via HTTP ou diretamente pela interface Swagger (`/docs`):
+
+#### Cadastros de quartos e hóspedes (CRUD)
+
+| Operação | Quartos | Hóspedes |
+| :--- | :--- | :--- |
+| Cadastrar | `POST /quartos` | `POST /hospedes` |
+| Listar todos | `GET /quartos` | `GET /hospedes` |
+| Consultar um | `GET /quartos/{numero}` | `GET /hospedes/{id}` |
+| Atualizar | `PUT /quartos/{numero}` | `PUT /hospedes/{id}` |
+| Excluir | `DELETE /quartos/{numero}` | `DELETE /hospedes/{id}` |
+
+O `PUT` recebe todos os campos cadastrais obrigatórios. Campos opcionais omitidos
+voltam aos valores padrão. O número do quarto e o ID do hóspede são fixos, definidos
+na URL. A edição do quarto preserva seu estado e o período de manutenção; bloqueios,
+check-in e check-out continuam sendo feitos pelas operações específicas.
+
+Exemplo de `PUT /quartos/101`:
+
+```json
+{
+  "tipo": "SIMPLES",
+  "capacidade": 2,
+  "tarifa_base": 180.0
+}
+```
+
+Para `PUT /hospedes/1`, use os mesmos campos do cadastro de hóspede abaixo.
+Atualizações preservam as reservas vinculadas e os valores de diárias já contratados.
+Não é permitido reduzir a capacidade abaixo do número de hóspedes de qualquer
+reserva vinculada, inclusive histórica (`400`).
+
+Uma exclusão bem-sucedida retorna `204`, sem corpo. Cadastros com reservas vinculadas
+não podem ser excluídos (`409`), mesmo após cancelamento ou encerramento da estadia.
+Documento duplicado também retorna `409`; identificadores inexistentes retornam `404`.
 
 #### 1. Cadastrar Hóspede
 * **`POST /hospedes`**

@@ -736,6 +736,10 @@ classDiagram
         -dict _settings
         +cadastrar_quarto(quarto: Quarto) void
         +cadastrar_hospede(hospede: Hospede) int
+        +atualizar_quarto(numero: int, tipo: TipoQuarto, capacidade: int, tarifa_base: float, tem_varanda: bool, tem_hidromassagem: bool, taxa_servico_adicional: float) Quarto
+        +excluir_quarto(numero: int) void
+        +atualizar_hospede(hospede: Hospede) void
+        +excluir_hospede(hospede_id: int) void
         +buscar_quartos_disponiveis(inicio: date, fim: date, tipo: TipoQuarto) list~Quarto~
         +criar_reserva(hospede_id: int, quarto_num: int, entrada: date, saida: date, num_hospedes: int, origem: OrigemReserva) Reserva
         +bloquear_quarto(numero: int, motivo: str, inicio: date, fim: date) void
