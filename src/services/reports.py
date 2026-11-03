@@ -73,16 +73,92 @@ class ServicoRelatorios:
         diarias_totais = len(numeros_quartos) * (fim - inicio).days
         return round(len(diarias_ocupadas) / diarias_totais * 100, 2) # Retorna a taxa de ocupação como uma porcentagem, arredondada para duas casas decimais.
     
-# Método à ser incrementado posteriormente para calcular a ADR (Average Daily Rate) com base nas reservas e no período especificado.
+# Diária média das hospedagens finalizadas no período informado.
     @staticmethod
     def calcular_adr(reservas: list[Reserva], inicio: date, fim: date) -> float:
-        """Base do relatório de diária média (ADR)"""
-        ...
+        """Calcula receita de diárias / noites vendidas no intervalo [inicio, fim).
 
-# Método à ser incrementado posteriormente para calcular a RevPAR (Revenue per Available Room) com base nos quartos, reservas e período especificado.
+        Considera reservas CHECKOUT com quarto associado e exclui adicionais.
+        Como a reserva armazena somente o total das diárias, distribui a receita
+        proporcionalmente pelas noites contratadas. Em recortes de estadias
+        com preços variáveis, esse rateio é uma aproximação da receita histórica.
+        """
+        if (
+            not isinstance(inicio, date)
+            or not isinstance(fim, date)
+            or isinstance(inicio, datetime)
+            or isinstance(fim, datetime)
+        ):
+            raise DadosInvalidosException("Início e fim devem ser datas do tipo date.")
+        if inicio >= fim:
+            raise DadosInvalidosException("O início deve ser anterior ao fim do período.")
+
+        receita_hospedagem = 0.0
+        diarias_vendidas = 0
+        for reserva in reservas:
+            if reserva.status != StatusReserva.CHECKOUT or reserva.quarto is None:
+                continue
+
+            entrada = max(inicio, reserva.data_entrada)
+            saida = min(fim, reserva.data_saida)
+            noites_no_periodo = (saida - entrada).days
+            if noites_no_periodo <= 0:
+                continue
+
+            # O recorte recebe apenas a parcela da receita referente às suas noites.
+            media_por_noite = reserva.valor_total_diarias / reserva.total_diarias
+            receita_hospedagem += media_por_noite * noites_no_periodo
+            diarias_vendidas += noites_no_periodo
+
+        if diarias_vendidas == 0:
+            return 0.0
+        return round(receita_hospedagem / diarias_vendidas, 2)
+
+# Receita de hospedagem por diária disponível no inventário informado.
     @staticmethod
     def calcular_revpar(
         quartos: list[Quarto], reservas: list[Reserva], inicio: date, fim: date
     ) -> float:
-        """Base da receita por quarto disponível (RevPAR)."""
-        ...
+        """Calcula receita de diárias / (quartos * dias) no intervalo [inicio, fim).
+
+        Considera reservas CHECKOUT dos quartos informados e exclui adicionais.
+        Identifica o inventário pelo número, sem descontar quartos pelo estado
+        atual, que não descreve sua disponibilidade histórica. Assim como no ADR,
+        rateia proporcionalmente o total contratado nos recortes de estadias;
+        com preços variáveis por noite, esse rateio é uma aproximação histórica.
+        """
+        if (
+            not isinstance(inicio, date)
+            or not isinstance(fim, date)
+            or isinstance(inicio, datetime)
+            or isinstance(fim, datetime)
+        ):
+            raise DadosInvalidosException("Início e fim devem ser datas do tipo date.")
+        if inicio >= fim:
+            raise DadosInvalidosException("O início deve ser anterior ao fim do período.")
+
+        numeros_quartos = {quarto.numero for quarto in quartos}
+        if not numeros_quartos:
+            return 0.0
+
+        receita_hospedagem = 0.0
+        for reserva in reservas:
+            if (
+                reserva.status != StatusReserva.CHECKOUT
+                or reserva.quarto is None
+                or reserva.quarto.numero not in numeros_quartos
+            ):
+                continue
+
+            entrada = max(inicio, reserva.data_entrada)
+            saida = min(fim, reserva.data_saida)
+            noites_no_periodo = (saida - entrada).days
+            if noites_no_periodo <= 0:
+                continue
+
+            media_por_noite = reserva.valor_total_diarias / reserva.total_diarias
+            receita_hospedagem += media_por_noite * noites_no_periodo
+
+        # A oferta inclui as noites não vendidas de cada quarto do inventário.
+        diarias_disponiveis = len(numeros_quartos) * (fim - inicio).days
+        return round(receita_hospedagem / diarias_disponiveis, 2)

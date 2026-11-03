@@ -1,6 +1,7 @@
 """Operações de persistência do sistema."""
 
 import json
+from sqlite3 import Connection
 from datetime import date, datetime
 from typing import Optional
 
@@ -13,9 +14,27 @@ from src.models.room import Quarto
 def _quarto_da_linha(linha) -> Quarto:
     return Quarto.from_dict(dict(linha)) # O from_dict é um método da classe Quarto que cria um objeto a partir de um dicionário
 
-def _hospede_da_linha(linha) -> Hospede:
-    """Converte uma linha da tabela hospedes em um objeto Hospede."""
-    return Hospede.from_dict(dict(linha)) # O from_dict é um método da classe Hospede que cria um objeto a partir de um dicionário
+def _hospede_da_linha(linha, conexao: Connection) -> Hospede:
+    """Reconstrói o hóspede e suas reservas compartilhando a mesma instância."""
+    hospede = Hospede.from_dict(dict(linha))
+    reservas = conexao.execute(
+        "SELECT * FROM reservas WHERE hospede_id = ? ORDER BY id",
+        (hospede.id,),
+    ).fetchall()
+    for linha_reserva in reservas:
+        dados = dict(linha_reserva)
+        quarto = conexao.execute(
+            "SELECT * FROM quartos WHERE numero = ?", (dados["quarto_numero"],)
+        ).fetchone()
+        if quarto is None:
+            raise RuntimeError("A reserva possui um quarto inválido.")
+        dados["quarto"] = dict(quarto)
+        dados["pagamentos"] = json.loads(dados["pagamentos"])
+        dados["adicionais"] = json.loads(dados["adicionais"])
+        reserva = Reserva.from_dict(dados)
+        reserva.hospede = hospede
+        hospede.vincular_reserva(reserva)
+    return hospede
 
 # Função para listar todos os quartos cadastrados no banco de dados
 def listar_quartos() -> list[Quarto]:
@@ -51,12 +70,23 @@ def salvar_quarto(quarto: Quarto) -> int:
         with conexao:
             conexao.execute(
                 """
-                INSERT OR REPLACE INTO quartos (
+                INSERT INTO quartos (
                     numero, tipo, capacidade, tarifa_base, status,
                     motivo_manutencao, inicio_manutencao, fim_manutencao,
                     tem_varanda, tem_hidromassagem, taxa_servico_adicional
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(numero) DO UPDATE SET
+                    tipo = excluded.tipo,
+                    capacidade = excluded.capacidade,
+                    tarifa_base = excluded.tarifa_base,
+                    status = excluded.status,
+                    motivo_manutencao = excluded.motivo_manutencao,
+                    inicio_manutencao = excluded.inicio_manutencao,
+                    fim_manutencao = excluded.fim_manutencao,
+                    tem_varanda = excluded.tem_varanda,
+                    tem_hidromassagem = excluded.tem_hidromassagem,
+                    taxa_servico_adicional = excluded.taxa_servico_adicional
                 """,
                 (
                     quarto.numero,
@@ -92,6 +122,30 @@ def buscar_quarto(numero: int) -> Optional[Quarto]:
         return _quarto_da_linha(linha) # Se encontrou, transforma a linha em um objeto Quarto e retorna
     finally:
         conexao.close()
+
+def maior_ocupacao_reservada(numero: int) -> int:
+    """Retorna a maior quantidade de hóspedes das reservas vinculadas ao quarto."""
+    conexao = obter_conexao()
+    try:
+        linha = conexao.execute(
+            "SELECT COALESCE(MAX(num_hospedes), 0) FROM reservas WHERE quarto_numero = ?",
+            (numero,),
+        ).fetchone()
+        return int(linha[0])
+    finally:
+        conexao.close()
+
+
+def excluir_quarto(numero: int) -> bool:
+    """Exclui um quarto sem reservas; a chave estrangeira protege os vínculos."""
+    conexao = obter_conexao()
+    try:
+        with conexao:
+            cursor = conexao.execute("DELETE FROM quartos WHERE numero = ?", (numero,))
+        return cursor.rowcount > 0
+    finally:
+        conexao.close()
+
 
 # Função para salvar um hóspede no banco de dados, retornando o ID gerado
 def salvar_hospede(hospede: Hospede) -> int:
@@ -138,9 +192,49 @@ def buscar_hospede(id_: int) -> Optional[Hospede]:
         if linha is None: # Testa se a linha retornada é None, ou seja, se não encontrou o hóspede, se sim, retorna None
             return None
 
-        return _hospede_da_linha(linha)
+        return _hospede_da_linha(linha, conexao)
     finally:
         conexao.close()
+
+def listar_hospedes() -> list[Hospede]:
+    """Retorna os cadastros de hóspedes em ordem de ID."""
+    conexao = obter_conexao()
+    try:
+        linhas = conexao.execute("SELECT * FROM hospedes ORDER BY id").fetchall()
+        return [_hospede_da_linha(linha, conexao) for linha in linhas]
+    finally:
+        conexao.close()
+
+
+def atualizar_hospede(hospede: Hospede) -> bool:
+    """Atualiza um cadastro existente preservando seu ID e suas reservas."""
+    conexao = obter_conexao()
+    try:
+        with conexao:
+            cursor = conexao.execute(
+                """
+                UPDATE hospedes SET
+                    nome = ?, documento = ?, email = ?, telefone = ?, preferencias = ?
+                WHERE id = ?
+                """,
+                (hospede.nome, hospede.documento, hospede.email, hospede.telefone,
+                 hospede.preferencias, hospede.id),
+            )
+        return cursor.rowcount > 0
+    finally:
+        conexao.close()
+
+
+def excluir_hospede(id_: int) -> bool:
+    """Exclui um hóspede sem reservas; a chave estrangeira protege os vínculos."""
+    conexao = obter_conexao()
+    try:
+        with conexao:
+            cursor = conexao.execute("DELETE FROM hospedes WHERE id = ?", (id_,))
+        return cursor.rowcount > 0
+    finally:
+        conexao.close()
+
 
 # Função para listar todas as temporadas que abrangem uma data específica
 def listar_temporadas(data_referencia: date) -> list[dict]:
@@ -243,41 +337,21 @@ def salvar_reserva(reserva: Reserva) -> int:
 
 # Função para buscar uma reserva pelo seu ID, retornando None se não encontrado
 def buscar_reserva(id_: int) -> Optional[Reserva]:
-    """Busca uma reserva pelo ID."""
+    """Busca uma reserva pelo ID com o histórico completo do hóspede."""
     conexao = obter_conexao()
     try:
         linha = conexao.execute(
-            "SELECT * FROM reservas WHERE id = ?",
+            "SELECT hospede_id FROM reservas WHERE id = ?",
             (id_,),
         ).fetchone()
 
         if linha is None:
             return None
 
-        dados = dict(linha) # Converte a linha retornada pelo SQLite em um dicionário mutável.
-        hospede = conexao.execute( # Busca os dados completos do hóspede relacionado pela chave estrangeira.
-            """
-            SELECT id, nome, documento, email, telefone, preferencias
-            FROM hospedes
-            WHERE id = ?
-            """,
-            (dados["hospede_id"],),
-        ).fetchone()
-
-        quarto = conexao.execute( # Busca os dados completos do quarto relacionado pela chave estrangeira.
-            "SELECT * FROM quartos WHERE numero = ?",
-            (dados["quarto_numero"],),
-        ).fetchone()
-
-        if hospede is None or quarto is None:
-            raise RuntimeError("A reserva possui um hóspede ou quarto inválido.")
-
-        dados["hospede"] = dict(hospede)
-        dados["quarto"] = dict(quarto)
-        dados["pagamentos"] = json.loads(dados["pagamentos"])
-        dados["adicionais"] = json.loads(dados["adicionais"])
-
-        return Reserva.from_dict(dados) # Reconstrói e retorna um objeto Reserva a partir dos dados completos.
+        hospede = buscar_hospede(linha["hospede_id"])
+        if hospede is None:
+            raise RuntimeError("A reserva possui um hóspede inválido.")
+        return next((reserva for reserva in hospede.historico_reservas if reserva.id == id_), None)
     finally:
         conexao.close()
 
@@ -303,17 +377,24 @@ def listar_reservas(status: Optional[str] = None) -> list[Reserva]:
     try:
         if status:
             linhas = conexao.execute(
-                "SELECT id FROM reservas WHERE status = ? ORDER BY id", (status,)
+                "SELECT id, hospede_id FROM reservas WHERE status = ? ORDER BY id", (status,)
             ).fetchall()
         else:
-            linhas = conexao.execute("SELECT id FROM reservas ORDER BY id").fetchall()
+            linhas = conexao.execute("SELECT id, hospede_id FROM reservas ORDER BY id").fetchall()
         
-        # Reaproveita a reconstrução segura já feita em buscar_reserva
+        # Carrega o histórico uma vez por hóspede, mesmo com várias reservas na lista.
+        historicos: dict[int, dict[int, Reserva]] = {}
         reservas = []
         for linha in linhas:
-            r = buscar_reserva(linha["id"])
-            if r is not None:
-                reservas.append(r)
+            hospede_id = linha["hospede_id"]
+            if hospede_id not in historicos:
+                hospede = buscar_hospede(hospede_id)
+                if hospede is None:
+                    raise RuntimeError("A reserva possui um hóspede inválido.")
+                historicos[hospede_id] = {reserva.id: reserva for reserva in hospede.historico_reservas}
+            reserva = historicos[hospede_id].get(linha["id"])
+            if reserva is not None:
+                reservas.append(reserva)
         return reservas
     finally:
         conexao.close()

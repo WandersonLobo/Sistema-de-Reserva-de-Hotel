@@ -38,6 +38,7 @@
     },
     
     "tolerancia_no_show": {
+        "horario_referencia": "23:59",
         "minutos": 120,
         "taxa": 0.4
     }

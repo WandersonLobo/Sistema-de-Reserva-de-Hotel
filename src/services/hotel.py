@@ -64,6 +64,58 @@ class Hotel:
         hospede.id = novo_id
         return novo_id
 
+    def atualizar_quarto(
+        self,
+        numero: int,
+        tipo: TipoQuarto,
+        capacidade: int,
+        tarifa_base: float,
+        tem_varanda: bool = False,
+        tem_hidromassagem: bool = False,
+        taxa_servico_adicional: float = 0.0,
+    ) -> Quarto:
+        """Edita o cadastro sem alterar estado, manutenção ou reservas existentes."""
+        quarto = data.buscar_quarto(numero)
+        if quarto is None:
+            raise DadosInvalidosException(f"Quarto {numero} não encontrado.")
+        if not isinstance(tipo, TipoQuarto):
+            raise DadosInvalidosException("O tipo de quarto informado é inválido.")
+
+        dados = quarto.to_dict()
+        dados.update(
+            tipo=tipo.value,
+            capacidade=capacidade,
+            tarifa_base=tarifa_base,
+            tem_varanda=tem_varanda,
+            tem_hidromassagem=tem_hidromassagem,
+            taxa_servico_adicional=taxa_servico_adicional,
+        )
+        atualizado = Quarto.from_dict(dados)
+        # A reconstrução de reservas também valida capacidade, inclusive no histórico.
+        if atualizado.capacidade < data.maior_ocupacao_reservada(numero):
+            raise CapacidadeExcedidaException(
+                "A capacidade não pode ser inferior ao número de hóspedes de reservas vinculadas."
+            )
+        data.salvar_quarto(atualizado)
+        return atualizado
+
+    def excluir_quarto(self, numero: int) -> None:
+        """Exclui um quarto; reservas vinculadas impedem a exclusão no SQLite."""
+        if not data.excluir_quarto(numero):
+            raise DadosInvalidosException(f"Quarto {numero} não encontrado.")
+
+    def atualizar_hospede(self, hospede: Hospede) -> None:
+        """Atualiza os dados pessoais sem gerar outro cadastro ou ID."""
+        if not isinstance(hospede, Hospede):
+            raise DadosInvalidosException("O objeto hóspede fornecido é inválido.")
+        if not data.atualizar_hospede(hospede):
+            raise DadosInvalidosException(f"Hóspede {hospede.id} não encontrado.")
+
+    def excluir_hospede(self, hospede_id: int) -> None:
+        """Exclui um hóspede; reservas vinculadas impedem a exclusão no SQLite."""
+        if not data.excluir_hospede(hospede_id):
+            raise DadosInvalidosException(f"Hóspede {hospede_id} não encontrado.")
+
     def bloquear_quarto(self, numero: int, motivo: str, inicio: date, fim: date) -> None:
         """Interdita um quarto para manutenção e atualiza o banco."""
         quarto = data.buscar_quarto(numero)
@@ -176,6 +228,7 @@ class Hotel:
         )
         novo_id = data.salvar_reserva(reserva)
         reserva.id = novo_id
+        hospede.vincular_reserva(reserva)
         return reserva
 
     def processar_checkin(self, reserva_id: int, momento: datetime) -> None:
@@ -197,10 +250,17 @@ class Hotel:
         horario_padrao = datetime.combine(reserva.data_entrada, time(h, m))
         horario_minimo = horario_padrao - timedelta(minutes=tolerancia_min)
 
+         # Validação de data de entrada
+        if momento.date() != reserva.data_entrada:
+            raise DadosInvalidosException(
+        "O check-in deve ser realizado na data de entrada da reserva."
+        )
+         # Validação de horário mínimo
         if momento < horario_minimo:
             raise DadosInvalidosException(
                 f"Check-in antecipado não permitido. Horário mínimo: {horario_minimo}."
             )
+        
         reserva.realizar_checkin(momento, tolerancia_min=tolerancia_min)
         data.salvar_reserva(reserva)
         if reserva.quarto:
@@ -276,15 +336,15 @@ class Hotel:
             # Configurações de tolerância e horários
         cfg_noshow = self._settings.get("tolerancia_no_show", {})
         minutos_tolerancia = int(cfg_noshow.get("minutos", 120))
-        cfg_horarios = self._settings.get("entrada_e_saida", {})
-        hora_str = cfg_horarios.get("checkIn_a_partir", "14:00")
-        h, m = map(int, hora_str.split(":"))
+        hora_str = cfg_noshow["horario_referencia"]
+        h, m = map(int, hora_str.split(":"))    
         reservas_confirmadas = data.listar_reservas(status="CONFIRMADA")
         noshows_processados: list[int] = []
 
         for reserva in reservas_confirmadas:
             horario_previsto = datetime.combine(reserva.data_entrada, time(h, m))
             horario_limite = horario_previsto + timedelta(minutes=minutos_tolerancia)
+
             if momento_atual > horario_limite:
                 reserva.marcar_noshow()
                 data.salvar_reserva(reserva)
